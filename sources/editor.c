@@ -26,10 +26,16 @@ int editor_tile_y = 0;
 bool editor_tiles = false;
 int editor_draw_tile = 1;
 
+int red;
+int yellow;
+int blue;
 
 void editor_init(struct Map *map) {
     struct Screen *screen = screen_get();
     map_set_region(map, 0, 0, screen->w, screen->h);
+    red = color_create(255, 0, 0);
+    yellow = color_create(255, 255, 0);
+    blue = color_create(0, 0, 255);
 }
 
 void editor_mode(struct Map *map, struct Player *player) {
@@ -40,16 +46,19 @@ void editor_mode(struct Map *map, struct Player *player) {
         if (playing_get()) {
             player->fall_off = false;
             player->has_control = true;
-            player->chara->x = editor_tile_x * 16;
-            player->chara->y = editor_tile_y * 16;
+            player->chara->x = editor_tile_x * 16 + 8;
+            player->chara->y = editor_tile_y * 16 + 16;
             
             int w = screen->w / 2 , h = screen->h / 2;
             map_set_region(map, w / 2, h / 2, w, h);
-        
+            map_platforms_create(map);
+            
         } else {
             map_set_region(map, 0, 0, screen->w, screen->h);
+            map_platforms_remove(map);
         }
         map->cur_zone = NULL;
+        map->old_zone = NULL;
         map->scroll_to = 0;
     }
     
@@ -81,20 +90,11 @@ void editor_edit_zones(struct Map *map, int px, int py, bool shift, bool ctrl) {
             }
         
             bool m = mouse_pressed(SDL_BUTTON_LEFT);
-            if (dyu <= 8 ) {
-                editor_tiles = false;
-             //   screen.setCursor('n-resize');
-                if (m) {
-                    editor_move_zone_dir = 1;
-                }
-            
-            } else if (dyd <= 8) {
-                editor_tiles = false;
-               // screen.setCursor('s-resize');
-                if (m) {
-                    editor_move_zone_dir = 4;
-                }
-                   
+            if (ctrl && m) { 
+                editor_move_zone_dir = 16;
+                editor_move_offset_x = editor_tile_x - sx;
+                editor_move_offset_y = editor_tile_y - sy;
+           //     screen.setCursor('default');
             } else if (dxl <= 8) {
                 editor_tiles = false;
               //  screen.setCursor('w-resize');
@@ -108,11 +108,19 @@ void editor_edit_zones(struct Map *map, int px, int py, bool shift, bool ctrl) {
                 if (m) {
                     editor_move_zone_dir = 2;
                 }
-            } else if (ctrl && m) { 
-                editor_move_zone_dir = 16;
-                editor_move_offset_x = editor_tile_x - sx;
-                editor_move_offset_y = editor_tile_y - sy;
-           //     screen.setCursor('default');
+            } else if (dyu <= 8 ) {
+                editor_tiles = false;
+             //   screen.setCursor('n-resize');
+                if (m) {
+                    editor_move_zone_dir = 1;
+                }
+            
+            } else if (dyd <= 8) {
+                editor_tiles = false;
+               // screen.setCursor('s-resize');
+                if (m) {
+                    editor_move_zone_dir = 4;
+                }
             }
             
             if (editor_move_zone_dir != 0) {
@@ -136,27 +144,27 @@ void editor_edit_zones(struct Map *map, int px, int py, bool shift, bool ctrl) {
         // Resize
         if (editor_move_zone_dir == 1) {
             int h = editor_old_zone[3] + (editor_old_zone[1] - editor_tile_y);
-            if (h >= 15) {
+            if (h >= (editor_edit_zone->type == 0 ? 15 : 1)) {
                 editor_edit_zone->y = editor_tile_y;
                 editor_edit_zone->h = h;
             }
             
         } else if (editor_move_zone_dir == 8) {
             int w = editor_old_zone[2] + (editor_old_zone[0] - editor_tile_x);
-            if (w >= 20) {
+            if (w >= (editor_edit_zone->type == 0 ? 20 : 2)) {
                 editor_edit_zone->x = editor_tile_x;
                 editor_edit_zone->w = w;
             }
         
         } else if (editor_move_zone_dir == 2) {
             int w = editor_old_zone[2] - ((editor_old_zone[2] - editor_tile_x) + editor_edit_zone->x) + 1;
-            if (w >= 20) {
+            if (w >=( editor_edit_zone->type == 0 ? 20 : 2)) {
                 editor_edit_zone->w = w;
             }
         
         } else if (editor_move_zone_dir == 4) {
             int h = editor_old_zone[3] - ((editor_old_zone[3] - editor_tile_y) + editor_edit_zone->y) + 1;
-            if (h >= 15) {
+            if (h >= (editor_edit_zone->type == 0 ? 15 : 1)) {
                 editor_edit_zone->h = h;
             }
         
@@ -225,7 +233,7 @@ void editor_update(struct Map *map) {
         editor_tiles = true;
         if (editor_move_zone_dir == 0) {
             struct MapZone *old_zone = editor_zone;
-            editor_zone = map_zone_get_at(map, px, py);
+            editor_zone = map_zone_get_at(map, px, py, true);
             if (editor_zone == NULL && old_zone != NULL) {
            //     screen.setCursor('default');
                 
@@ -244,9 +252,13 @@ void editor_update(struct Map *map) {
                 map_set_at(map, editor_tile_x, editor_tile_y, 0);
             }
             
-            if (key_pressed(SDLK_LALT)) {
-                map_zone_create(map, editor_tile_x, editor_tile_y, 20, 15);
+            if (key_pressed(SDLK_F1)) {
+                map_zone_create(map, editor_tile_x, editor_tile_y, 20, 15, 0);
             }
+            
+            if (key_pressed(SDLK_F2)) {
+                map_zone_create(map, editor_tile_x, editor_tile_y, 9, 1, 1);
+            }  
             
             if (key_pressed(SDLK_1)) {
                 editor_draw_tile = 1;
@@ -273,12 +285,19 @@ void editor_render(struct Map *map, SDL_Surface *bg) {
     
     // Tiles
     int px, py, w, h;
-    int red = color_create(255, 0, 0), yellow = color_create(255, 255, 0);
     for(int i = 0, l = map->zones->length; i < l; i++) {
         struct MapZone *zone = (struct MapZone*)list_get(map->zones, i);
         map_zone_get_region(zone, &px, &py, &w, &h);
         map_to_screen(map, px * 16, py * 16, &px, &py);
         draw_rect(bg, px, py, w * 16, h * 16, editor_zone == zone ? yellow : red);
     }
+    
+    for(int i = 0, l = map->platform_zones->length; i < l; i++) {
+        struct MapZone *zone = (struct MapZone*)list_get(map->platform_zones, i);
+        map_zone_get_region(zone, &px, &py, &w, &h);
+        map_to_screen(map, px * 16, py * 16, &px, &py);
+        draw_rect(bg, px, py, w * 16, h * 16, editor_zone == zone ? yellow : blue);
+    }
+    
 }
 

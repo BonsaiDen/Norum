@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <stdbool.h>
 
+
 struct List;
 
 struct Screen {
@@ -33,7 +34,7 @@ struct Engine {
     int keys[322];
     int key_count;
     
-    int mouse[8];
+    int mouse[16];
     int mouse_x;
     int mouse_y;
     int mouse_count;
@@ -71,6 +72,7 @@ void tiles_draw(const struct TileMap *map, SDL_Surface *bg, const int index, int
 
 // Drawing
 int color_create(const int r, const int g, const int b);
+int color_create_alpha(const int r, const int g, const int b, const int a);
 void draw_rect(SDL_Surface *bg, const int x, const int y, const int w, const int h, const int color);
 void draw_rect_filled(SDL_Surface *bg, const int x, const int y, const int w, const int h, const int color);
 

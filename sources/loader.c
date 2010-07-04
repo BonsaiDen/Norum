@@ -12,7 +12,7 @@ void map_save(struct Map *map, const char *file_name) {
     FILE *fp = fopen(file_name, "w");
     
     // Header
-    int header[] = {map->size_x, map->size_y, 1};
+    int header[] = {map->size_x, map->size_y, 2};
     fwrite(header, sizeof(int), 3, fp);
     
     // Block
@@ -23,14 +23,22 @@ void map_save(struct Map *map, const char *file_name) {
     free(data);
     
     // Zones
-    int zone_count = map->zones->length;
+    int zone_count = map->zones->length + map->platform_zones->length;
     fwrite(&zone_count, sizeof(int), 1, fp);
     
-    int *d = (int*)calloc(sizeof(int), 4);
-    for(int i = 0; i < zone_count; i++) {
+    int *d = (int*)calloc(sizeof(int), 5);
+    for(int i = 0; i < map->zones->length; i++) {
         struct MapZone *zone = (struct MapZone*)list_get(map->zones, i);
         map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
-        fwrite(d, sizeof(int), 4, fp);
+        d[4] = zone->type;
+        fwrite(d, sizeof(int), 5, fp);
+    }
+    
+    for(int i = 0; i < map->platform_zones->length; i++) {
+        struct MapZone *zone = (struct MapZone*)list_get(map->platform_zones, i);
+        map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
+        d[4] = zone->type;
+        fwrite(d, sizeof(int), 5, fp);
     }
     free(d);
     fclose(fp);
@@ -43,6 +51,7 @@ bool map_load(struct Map *map, const char *file_name) {
         // Header
         int *header = (int*)calloc(sizeof(int), 3);
         fread(header, sizeof(int), 3, fp);
+        int version = header[2];
         map->pos_x = 0;
         map->pos_y = 0;
         map->map_x = 0;
@@ -69,11 +78,13 @@ bool map_load(struct Map *map, const char *file_name) {
         int *zone_count = (int*)malloc(sizeof(int));
         fread(zone_count, sizeof(int), 1, fp);  
         
-        int *d = (int*)calloc(sizeof(int), 4);
+        int *d = (int*)calloc(sizeof(int), 5);
         for(int i = 0, l = *zone_count; i < l; i++) {
-            fread(d, sizeof(int), 4, fp);
-            map_zone_create(map, d[0], d[1], d[2], d[3]);
+            fread(d, sizeof(int), version == 1 ? 4 : 5, fp);
+            map_zone_create(map, d[0], d[1], d[2], d[3], version == 1 ? 0 : d[4]);
         }
+        map_platforms_create(map);
+        
         free(zone_count);
         free(d);
         fclose(fp);

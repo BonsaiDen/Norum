@@ -20,29 +20,29 @@ struct Player *player_create(struct Map *map, const int x, const int y) {
 void player_control(struct Player *player) {
     if (player->has_control) {
         if (key_down(SDLK_a)) {
-            player->chara->speed = -3;
+            player->chara->move_speed = -3;
         
         } else if (key_down(SDLK_d)) {
-            player->chara->speed = 3;
+            player->chara->move_speed = 3;
         
         } else {
-            player->chara->speed = 0;
+            player->chara->move_speed = 0;
         }
         
         if (key_pressed(SDLK_SPACE) && !player->jumped 
             && player->chara->on_ground) {
             
             player->chara->on_ground = false;
-            player->chara->grav = gravity_get() ? -15.9 : 15.9;
+            player->chara->grav_fall = gravity_get() ? -15.9 : 15.9;
             player->jumped = true;
         
         } else if (!key_down(SDLK_SPACE)) {
             if (player->jumped) {
                 if (gravity_get()) {
-                    player->chara->grav = fmax(-1.15, player->chara->grav);
+                    player->chara->grav_fall = fmax(-1.15, player->chara->grav_fall);
                 
                 } else {
-                    player->chara->grav = fmin(1.15, player->chara->grav);
+                    player->chara->grav_fall = fmin(1.15, player->chara->grav_fall);
                 }
                 player->jumped = false;
             }

@@ -5,9 +5,12 @@
 #include "engine.h"
 #include "list.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <SDL.h>
 
+
+void map_platforms_remove(const struct Map *map);
 
 struct Map *map_create(const int width, const int height,
                        const int size_x, const int size_y,
@@ -23,7 +26,7 @@ struct Map *map_create(const int width, const int height,
     map->scroll_x = 0;
     map->scroll_y = 0;
     map->pos_x = 0;
-    map->pos_y = 0;  
+    map->pos_y = 0; 
     map->map_x = 0;
     map->map_y = 0;
     
@@ -34,12 +37,25 @@ struct Map *map_create(const int width, const int height,
     map->scroll_offset = 0;
     map->scroll_to = 0;
     
-    map->zones = list_create(4);
+    map->zones = list_create(8);
+    map->platform_zones = list_create(8);
+    map->platforms = list_create(8);
+    map->platforms_local = list_create(8);
     map->cur_zone = NULL;
+    map->old_zone = NULL;
     map->player = NULL;
     
     map_offset(map, false, 0, 0);
     return map;
+}
+
+void map_free(const struct Map *map) {
+    free(map->blocks);
+    map_zones_remove(map);
+    free(map->zones);
+    free(map->platform_zones);
+    map_platforms_remove(map);
+    free(map->platforms);
 }
 
 void map_set_player(struct Map *map, struct Player *player) {
@@ -67,6 +83,13 @@ void map_draw(const struct Map *map) {
         }
         sx = 0;
         sy += 16;
+    }
+    
+    struct Platform *platform;
+    for(int i = 0, l = map->platforms_local->length; i < l; i++) {
+        platform = (struct Platform*)list_get(map->platforms_local, i);
+        map_to_buffer(map, platform->zone->x * 16 + platform->x, platform->zone->y * 16 + platform->y, &sx, &sy);
+        draw_rect_filled(map->buffer, sx, sy, 32, 8, color_create(0, 0, 255));
     }
 }
 
@@ -103,13 +126,92 @@ void map_set_region(struct Map *map, const int x, const int y,
 }
 
 
+// Platforms -------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void map_platforms_update_local(const struct Map *map) {
+    struct Platform *platform;
+    while((platform = (struct Platform*)list_pop(map->platforms_local, 0)) != NULL) {   
+    }
+    
+  //  printf("----------\n");
+    int px, py, w, h;
+    for(int i = 0, l = map->platforms->length; i < l; i++) {
+        platform = (struct Platform*)list_get(map->platforms, i);
+        if (map->cur_zone != NULL) {
+            map_zone_get_region(map->cur_zone, &px, &py, &w, &h);
+            if (platform->zone->x <= px + w && platform->zone->x + platform->zone->w >= px) {
+                if (platform->zone->y <= py + h && platform->zone->y + platform->zone->h >= py) {
+                    list_append(map->platforms_local, platform);
+                   // printf("new %d %d %d\n", i, px, py);
+                }
+            }
+        }
+        
+        if (map->old_zone != NULL) {
+            map_zone_get_region(map->old_zone, &px, &py, &w, &h);
+            if (platform->zone->x <= px + w && platform->zone->x + platform->zone->w >= px) {
+                if (platform->zone->y <= py + h && platform->zone->y + platform->zone->h >= py) {
+                    list_append(map->platforms_local, platform);
+                 //   printf("old %d %d %d\n", i, px, py);
+                }
+            }
+        }
+    }
+}
+
+void map_platforms_remove(const struct Map *map) {
+    struct Platform *platform;
+    while((platform = (struct Platform*)list_pop(map->platforms_local, 0)) != NULL) {   
+    }
+    while((platform = (struct Platform*)list_pop(map->platforms, 0)) != NULL) {
+        free(platform);
+    } 
+}
+
+void map_platforms_create(const struct Map *map) {
+    map_platforms_remove(map);
+    
+    for(int i = 0, l = map->platform_zones->length; i < l; i++) {
+        struct Platform *platform = (struct Platform*)malloc(sizeof(struct Platform));
+        platform->zone = (struct MapZone*)list_get(map->platform_zones, i);
+        
+        if (platform->zone->w > 2) {
+            platform->mode = 2;
+        
+        } else if (platform->zone->h > 1) {
+            platform->mode = 4;
+        
+        } else {
+            platform->mode = 0;
+        }
+        platform->x = 0;
+        platform->y = 0;
+        platform->speed = 2;
+        list_append(map->platforms, platform);
+    }
+}
+
+
 // Zones -----------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 struct MapZone *map_zone_get_at(const struct Map *map, const int x,
-                                                       const int y) {
+                                                       const int y,
+                                                       const bool platform_zones) {
     
     int px, py, w, h;
     struct MapZone *zone;
+    if (platform_zones) {
+        for(int i = 0, l = map->platform_zones->length; i < l; i++) {
+            zone = (struct MapZone*)list_get(map->platform_zones, i);
+            map_zone_get_region(zone, &px, &py, &w, &h);
+            if (x >= px * 16 && x < px * 16 + w * 16 
+                && y >= py * 16 && y < py * 16 + h * 16) {
+                
+                return zone;
+            }
+        }
+    }
+    
     for(int i = 0, l = map->zones->length; i < l; i++) {
         zone = (struct MapZone*)list_get(map->zones, i);
         map_zone_get_region(zone, &px, &py, &w, &h);
@@ -117,7 +219,7 @@ struct MapZone *map_zone_get_at(const struct Map *map, const int x,
             && y >= py * 16 && y < py * 16 + h * 16) {
             
             return zone;
-        }  
+        }
     }
     return NULL;
 }
@@ -132,7 +234,8 @@ void map_zone_get_region(const struct MapZone *zone, int *x, int *y,
 }
 
 void map_zone_create(const struct Map *map, const int x, const int y,
-                                            const int w, const int h) {
+                                            const int w, const int h,
+                                            const int type) {
     
     struct MapZone *zone = (struct MapZone*)malloc(sizeof(struct MapZone));
     if (x + w > map->size_x) {
@@ -149,16 +252,31 @@ void map_zone_create(const struct Map *map, const int x, const int y,
     
     zone->w = w;
     zone->h = h;
-    list_append(map->zones, zone);
+    zone->type = type;
+    if (type == 0) {
+        list_append(map->zones, zone);
+    
+    } else if (type == 1) {
+        list_append(map->platform_zones, zone);
+    }
 }
 
 void map_zone_delete(const struct Map *map, struct MapZone *zone) {
-    free((struct MapZone*)list_remove(map->zones, zone));
+    if (zone->type == 0) {
+        free((struct MapZone*)list_remove(map->zones, zone));
+    
+    } else if (zone->type == 1) {
+        free((struct MapZone*)list_remove(map->platform_zones, zone));
+    }
 }
 
 void map_zones_remove(const struct Map *map) {
     struct MapZone *zone;
     while((zone = (struct MapZone*)list_pop(map->zones, 0)) != NULL) {
+        free(zone);
+    }
+    
+    while((zone = (struct MapZone*)list_pop(map->platform_zones, 0)) != NULL) {
         free(zone);
     }
 }
@@ -294,18 +412,21 @@ bool map_zone_change(struct Map *map, const struct MapZone *old,
 }
 
 bool map_limit_to_zone(struct Map *map, const int x, const int y) {
-    struct MapZone *zone = map_zone_get_at(map, x, y);
+    struct MapZone *zone = map_zone_get_at(map, x, y, false);
     if (zone != map->cur_zone && map->cur_zone != NULL
         && !map->player->fall_off) {
         
         if (map_zone_change(map, map->cur_zone, zone, x, y)) {
+            map->old_zone = map->cur_zone;
             map->cur_zone = zone;
+            map_platforms_update_local(map);
             return true;
         }
     }
     
     if (map->cur_zone == NULL) {
         map->cur_zone = zone;
+        map_platforms_update_local(map);
     }
     
     if (map->cur_zone == NULL) {
@@ -391,6 +512,51 @@ bool map_offset(struct Map *map, const bool limit, const int zx, const int zy) {
 
 // Scroll Handling -------------------------------------------------------------
 // -----------------------------------------------------------------------------
+void map_control_platforms_vertical(struct Map *map) {
+    if (map->scroll_to == 0) {
+        struct Platform *platform;
+        for(int i = 0, l = map->platforms_local->length; i < l; i++) {
+            platform = (struct Platform*)list_get(map->platforms_local, i);
+            if (platform->mode == 4) {
+                platform->y += platform->speed;
+                if (platform->y >= platform->zone->h * 16 - 8) {
+                    platform->y = platform->zone->h * 16 - 8;
+                    platform->mode = 1;
+                }
+            } else if (platform->mode == 1) {
+                platform->y -= platform->speed;
+                if (platform->y <= 0) {
+                    platform->y = 0;
+                    platform->mode = 4;
+                }
+            }
+        }
+    }
+}
+
+void map_control_platforms_horizontal(struct Map *map) {
+    if (map->scroll_to == 0) {
+        struct Platform *platform;
+        for(int i = 0, l = map->platforms_local->length; i < l; i++) {
+            platform = (struct Platform*)list_get(map->platforms_local, i);
+            if (platform->mode == 2) {
+                platform->x += platform->speed;
+                if (platform->x >= platform->zone->w * 16 - 32) {
+                    platform->x = platform->zone->w * 16 - 32;
+                    platform->mode = 8;
+                }
+            
+            } else if (platform->mode == 8) {
+                platform->x -= platform->speed;
+                if (platform->x <= 0) {
+                    platform->x = 0;
+                    platform->mode = 2;
+                }
+            }
+        }
+    }
+}
+
 void map_control(struct Map *map) {
     struct Player *player = map->player;
     
@@ -398,12 +564,12 @@ void map_control(struct Map *map) {
         player->has_control = false;
         map->scroll_offset -= 14;
         
+        bool done = false;
         if (map->scroll_to == 2) {
             map->pos_x += 14;
             if (map->scroll_offset <= 0) {
                 map->pos_x += map->scroll_offset;
-                player->has_control = true;
-                map->scroll_to = 0;
+                done = true;
             }
             player->chara->x += 1;
         
@@ -411,9 +577,7 @@ void map_control(struct Map *map) {
             map->pos_x -= 14;
             if (map->scroll_offset <= 0) {
                 map->pos_x -= map->scroll_offset;
-                player->has_control = true;
-                
-                map->scroll_to = 0;
+                done = true;
             }
             player->chara->x -= 1;   
         
@@ -424,8 +588,7 @@ void map_control(struct Map *map) {
             }
             if (map->scroll_offset <= 0) {
                 map->pos_y += map->scroll_offset;
-                player->has_control = true;
-                map->scroll_to = 0;
+                done = true;
             }
         
         } else if (map->scroll_to == 1) {
@@ -435,13 +598,19 @@ void map_control(struct Map *map) {
             }
             if (map->scroll_offset <= 0) {
                 map->pos_y -= map->scroll_offset;
-                player->has_control = true;
-                map->scroll_to = 0;
+                done = true;
             }
+        }
+        
+        if (done) {
+            map->old_zone = NULL;
+            map_platforms_update_local(map);
+            player->has_control = true;
+            map->scroll_to = 0;
         }
         map_offset(map, false, 0, 0);
     
-    } else {
+    } else {        
         map->pos_x = player->chara->x - (map->tiles_x / 2) * 16;
         map->pos_y = player->chara->y - (map->tiles_y / 2) * 16;
         
@@ -516,5 +685,21 @@ int map_col_right(const struct Map *map, const int x, const int y) {
 
 int map_col_left(const struct Map *map, const int x, const int y) {
     return map_col_horizontal(map, x, y, -1);
+}
+
+struct Platform * map_col_down_platform(const struct Map *map, const int x, const int y) {
+    struct Platform *platform;
+    int px, py;
+    for(int i = 0, l = map->platforms_local->length; i < l; i++) {
+        platform = (struct Platform*)list_get(map->platforms_local, i);
+        px = platform->zone->x * 16 + platform->x;
+        py = platform->zone->y * 16 + platform->y;
+        if (x >= px && x <= px + 32) {
+            if (y >= py && y <= py + 8) {
+                return platform;
+            }
+        }
+    }
+    return NULL;
 }
 

@@ -276,7 +276,7 @@ void mouse_get_pos(int *x, int *y) {
 // -----------------------------------------------------------------------------
 SDL_Surface *image_create(int w, int h, long int key) {
     SDL_PixelFormat *format = engine->screen->format;
-    SDL_Surface *img = SDL_CreateRGBSurface(SDL_HWSURFACE, w, h,
+    SDL_Surface *img = SDL_CreateRGBSurface(SDL_RLEACCEL, w, h,
                                             format->BitsPerPixel, 
                                             format->Rmask,
                                             format->Gmask,
@@ -297,7 +297,7 @@ SDL_Surface *image_load(const char* file, long int key) {
         engine_crash("Image loading failed");
     }
     
-    SDL_Surface *img = SDL_ConvertSurface(tmp, engine->screen->format, SDL_HWSURFACE);
+    SDL_Surface *img = SDL_ConvertSurface(tmp, engine->screen->format, SDL_RLEACCEL);
     SDL_FreeSurface(tmp);
     image_color_key(img, key);
     list_add(engine->list_surfaces, img);
@@ -349,6 +349,9 @@ void tiles_draw(const struct TileMap *map, SDL_Surface *bg, const int index, int
 // -----------------------------------------------------------------------------
 int color_create(const int r, const int g, const int b) {
     return SDL_MapRGB(engine->screen->bg->format, r, g, b);
+}
+int color_create_alpha(const int r, const int g, const int b, const int a) {
+    return SDL_MapRGBA(engine->screen->bg->format, r, g, b, a);
 }
 
 void draw_rect(SDL_Surface *bg, const int x, const int y, const int w, const int h, const int color) {

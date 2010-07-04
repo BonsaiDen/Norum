@@ -1,4 +1,5 @@
 *~
-./make
-./edit
-./main
+make
+edit
+main
+/build

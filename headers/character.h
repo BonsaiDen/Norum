@@ -1,6 +1,7 @@
 #include <stdbool.h>
 
 struct Map;
+struct Platform;
 
 struct Character {
     struct Map *map;
@@ -8,9 +9,10 @@ struct Character {
     int x, y;
     int ox, oy;
     int cx, cy;
-    int speed, speed_relative;
+    int speed, move_speed, speed_relative;
     
     float grav;
+    float grav_fall;
     float grav_add;
     float grav_max;
     float grav_min;
@@ -18,6 +20,8 @@ struct Character {
     float grav_relative;
     
     bool on_ground;
+    bool on_platform;
+    struct Platform *platform;
     
     int w, h;
     int l, r;

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+void chara_col_down_platform(struct Character *chara);
 
 struct Character *chara_create(struct Map *map, const int x, const int y,
                                                 const int width, const int height) {
@@ -24,9 +25,11 @@ struct Character *chara_create(struct Map *map, const int x, const int y,
     chara->r = width / 2;
     
     chara->speed = 0;
+    chara->move_speed = 0;
     chara->speed_relative = 0;
     
     chara->grav = 0.0;
+    chara->grav_fall = 0.0;
     chara->grav_add = 0.0;
     chara->grav_max = 0.0;
     chara->grav_min = 0.0;
@@ -34,6 +37,7 @@ struct Character *chara_create(struct Map *map, const int x, const int y,
     chara->grav_relative = 0.0;
     
     chara->on_ground = false;
+    chara->on_platform = false;
     
     chara_set_gravity(chara, 1.55, -6, 6);
     return chara;
@@ -53,20 +57,20 @@ void chara_update(struct Character *chara, const bool has_control,
         chara_fall(chara, fall_off);
         
         if (chara->on_ground) {
-            chara->grav = 0.0;
+            chara->grav_fall = 0.0;
         
         } else {
-            chara->grav += chara->grav_add;
+            chara->grav_fall += chara->grav_add;
         }
         
         if (chara->grav_add > 0) {
-            if (chara->grav > chara->grav_max) {
-                chara->grav = chara->grav_max;
+            if (chara->grav_fall > chara->grav_max) {
+                chara->grav_fall = chara->grav_max;
             }
         
         } else if (chara->grav_add < 0) {
-            if (chara->grav < chara->grav_min) {
-                chara->grav = chara->grav_min;
+            if (chara->grav_fall < chara->grav_min) {
+                chara->grav_fall = chara->grav_min;
             }
         }
     }
@@ -80,9 +84,19 @@ bool chara_move(struct Character *chara) {
     chara->oy = chara->y;
     
     int mx, offset;
-    chara_limit_x(chara, &mx, &offset);
     
+    chara->speed = chara->move_speed;
+    if (chara->on_platform) {
+        if (chara->platform->mode == 2) {
+            chara->speed += chara->platform->speed;
+        
+        } else if (chara->platform->mode == 8) {
+            chara->speed -= chara->platform->speed;
+        }
+    }
+    chara_limit_x(chara, &mx, &offset);
     chara_check_x(chara, true, 0);
+    
     for (int i = 0, l = abs(chara->speed); i < l; i++) {
         if (chara_check_x(chara, false, offset)) {
             return true;
@@ -195,12 +209,38 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
         return false;
     }
     
+    chara->grav = chara->grav_fall;
+    chara_col_down_platform(chara);
+    if (chara->on_platform && chara->grav >= chara->grav_zero) {
+        if (chara->platform->mode == 2 || chara->platform->mode == 8) {
+            chara->grav = 0;
+            chara->grav_fall = 0;
+            chara->on_ground = true;
+            chara->y = chara->platform->zone->y * 16 + chara->platform->y;
+            return true;
+        }
+        if (chara->platform->mode == 1) {
+            chara->on_ground = true;
+            chara->y = chara->platform->zone->y * 16 + chara->platform->y;
+            chara->grav_fall = 0;
+            chara->grav = 0;
+            return true;
+        
+        } else if(chara->platform->mode == 4) {
+            chara->on_ground = true;
+            chara->grav_fall = 0;
+            chara->y = chara->platform->zone->y * 16 + chara->platform->y ;
+            chara->grav = 0;
+            return true;
+        }
+    }
+    
     int my, offset;
     chara_limit_y(chara, &my, &offset);
     if (chara->on_ground) {
         return false;
     }
-    
+
     int grav;
     if (chara->grav < 0) {
         grav = abs(fmax(floor(chara->grav), chara->grav_min));
@@ -217,6 +257,7 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
         if (chara->grav < chara->grav_zero) {
             chara->y -= 1;
             if (chara->y < my) {
+                chara->grav_fall = 0;
                 chara->grav = 0;
                 chara->y = my;
                 if (chara->grav_add < 0) {
@@ -228,6 +269,7 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
         } else if(chara->grav >= chara->grav_zero) {
             chara->y += 1;
             if (chara->y > my) {
+                chara->grav_fall = 0;
                 chara->grav = 0;
                 chara->y = my;
                 if (chara->grav_add > 0) {
@@ -325,6 +367,28 @@ int chara_col_down(const struct Character *chara) {
         my = fmin(map_col_down(chara->map, chara->x + o, chara->y), my);
     }
     return my;
+}
+
+void chara_col_down_platform(struct Character *chara) {
+    struct Platform *tmp;
+    struct Platform *platform = NULL;
+    chara->on_platform = false;
+    int o = 0;
+    for (int i = chara->l, l = chara->r + 15; i < l; i += 16) {
+        o = i -1;
+        if (o < chara->l) {
+            o = chara->l;
+        
+        } else if (o > chara->r - 1) {
+            o = chara->r - 1;
+        }
+        tmp = map_col_down_platform(chara->map, chara->x + o, chara->y + 2);
+        if (tmp != NULL && (platform == NULL || tmp->zone->y * 16 + tmp->y < platform->zone->y * 16 + platform->y)) {
+            platform = tmp;
+            chara->platform = platform;
+            chara->on_platform = true;
+        }
+    }
 }
 
 void chara_set_gravity(struct Character *chara, float add, float min, float max) {
