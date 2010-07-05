@@ -11,10 +11,16 @@
 struct Player *player_create(struct Map *map, const int x, const int y) {
     struct Player *player = ((struct Player*)malloc(sizeof(struct Player)));
     player->chara = chara_create(map, x, y, 16, 24);
+    player->chara->use_platforms = true;
     player->fall_off = false;
     player->has_control = false;
     player->jumped = false;
     return player;
+}
+
+void player_free(struct Player *player) {
+    chara_free(player->chara);
+    free(player);
 }
 
 void player_control(struct Player *player) {

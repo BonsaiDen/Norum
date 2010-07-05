@@ -5,10 +5,23 @@
 #include <stdlib.h>
 #include <math.h>
 
-void chara_col_down_platform(struct Character *chara);
+
+int chara_col_down_platform(struct Character *chara);
+int chara_col_up_platform(struct Character *chara);
+bool chara_check_x(struct Character *chara, const bool init, int offset);
+void chara_limit_x(const struct Character *chara, int *mx, int *offset);
+bool chara_check_y(struct Character *chara, const bool init, const int offset);
+void chara_limit_y(struct Character *chara, int *my, int *offset);
+
+int chara_col_left(const struct Character *chara);
+int chara_col_right(const struct Character *chara);
+int chara_col_up(const struct Character *chara);
+int chara_col_down(const struct Character *chara);
+
 
 struct Character *chara_create(struct Map *map, const int x, const int y,
-                                                const int width, const int height) {
+                                                const int width,
+                                                const int height) {
     
     struct Character *chara = malloc(sizeof(struct Character));
     chara->map = map;
@@ -38,9 +51,15 @@ struct Character *chara_create(struct Map *map, const int x, const int y,
     
     chara->on_ground = false;
     chara->on_platform = false;
+    chara->use_platforms = false;
+    chara->platform = NULL;
     
     chara_set_gravity(chara, 1.55, -6, 6);
     return chara;
+}
+
+void chara_free(struct Character *chara) {
+    free(chara);
 }
 
 
@@ -84,16 +103,19 @@ bool chara_move(struct Character *chara) {
     chara->oy = chara->y;
     
     int mx, offset;
-    
     chara->speed = chara->move_speed;
-    if (chara->on_platform) {
-        if (chara->platform->mode == 2) {
-            chara->speed += chara->platform->speed;
-        
-        } else if (chara->platform->mode == 8) {
-            chara->speed -= chara->platform->speed;
+    
+    if (chara->use_platforms) {
+        if (chara->on_platform) {
+            if (chara->platform->mode == 2) {
+                chara->speed += chara->platform->speed;
+            
+            } else if (chara->platform->mode == 8) {
+                chara->speed -= chara->platform->speed;
+            }
         }
     }
+    
     chara_limit_x(chara, &mx, &offset);
     chara_check_x(chara, true, 0);
     
@@ -208,39 +230,29 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
         chara->y += chara->grav_relative;
         return false;
     }
-    
     chara->grav = chara->grav_fall;
-    chara_col_down_platform(chara);
-    if (chara->on_platform && chara->grav >= chara->grav_zero) {
-        if (chara->platform->mode == 2 || chara->platform->mode == 8) {
-            chara->grav = 0;
-            chara->grav_fall = 0;
-            chara->on_ground = true;
-            chara->y = chara->platform->zone->y * 16 + chara->platform->y;
-            return true;
-        }
-        if (chara->platform->mode == 1) {
+
+    int my, offset;
+    chara_limit_y(chara, &my, &offset);
+    if (chara->use_platforms && (!chara->on_ground || chara->on_platform)) {
+        if (chara->on_platform && chara->grav >= chara->grav_zero) {
             chara->on_ground = true;
             chara->y = chara->platform->zone->y * 16 + chara->platform->y;
             chara->grav_fall = 0;
             chara->grav = 0;
-            return true;
         
-        } else if(chara->platform->mode == 4) {
+        } else if (chara->on_platform && chara->grav < chara->grav_zero) {
             chara->on_ground = true;
+            chara->y = chara->platform->zone->y * 16 + chara->platform->y + 8 + chara->h;
             chara->grav_fall = 0;
-            chara->y = chara->platform->zone->y * 16 + chara->platform->y ;
             chara->grav = 0;
-            return true;
         }
     }
     
-    int my, offset;
-    chara_limit_y(chara, &my, &offset);
     if (chara->on_ground) {
         return false;
     }
-
+    
     int grav;
     if (chara->grav < 0) {
         grav = abs(fmax(floor(chara->grav), chara->grav_min));
@@ -285,24 +297,29 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
 void chara_limit_y(struct Character *chara, int *my, int *offset) {
     if (chara->grav_add > 0) {
         if (chara->grav >= chara->grav_zero) {
-            int y = chara_col_down(chara);
+            int y = chara->use_platforms ? chara_col_down_platform(chara) : chara_col_down(chara);
             chara->on_ground = y > chara->y ? false : true;
             *my = y;
             *offset = 0;
         
         } else {
+            chara->on_platform = false;
             *my = chara_col_up(chara) + chara->h;
             *offset = chara->h + 1;
         }
     
     } else {
         if (chara->grav <= chara->grav_zero) {
-            int y = chara_col_up(chara) + chara->h;
+            
+       //     int y = chara_col_up(chara) + chara->h;
+            
+            int y = chara->use_platforms ? chara_col_up_platform(chara) + chara->h : chara_col_up(chara) + chara->h;
             chara->on_ground = y < chara->y ? false : true;
             *my = y;
             *offset = chara->h + 1;
         
         } else {
+            chara->on_platform = false;
             *my = chara_col_down(chara);
             *offset = 0;
         }
@@ -347,9 +364,43 @@ int chara_col_up(const struct Character *chara) {
         } else if (o > chara->r - 1) {
             o = chara->r - 1;
         }
-        my = fmax(map_col_up(chara->map,
-                             chara->x + o,
+        my = fmax(map_col_up(chara->map, chara->x + o,
                              chara->y - chara->h), my);
+    }
+    return my;
+}
+
+
+int chara_col_up_platform(struct Character *chara) {
+    int my = 0, o = 0, py = 0, oy = 0;
+    chara->on_platform = false;
+    struct Platform *tmp = NULL, *platform = NULL;
+    
+    for (int i = chara->l, l = chara->r + 15; i < l; i += 16) {
+        o = i -1;
+        if (o < chara->l) {
+            o = chara->l;
+        
+        } else if (o > chara->r - 1) {
+            o = chara->r - 1;
+        }
+        
+        my = fmax(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
+        tmp = map_col_up_platform(chara->map, chara->x + o, chara->y - chara->h, &py);
+        if (tmp) {
+            if (py > oy) {
+                oy = py;
+                platform = tmp;
+            }
+        }
+    }
+    
+    if (platform && oy > my) {
+        if ((chara->y- chara->h <= oy || (platform->mode == 1 && chara->y - chara->h <= oy + 8))) {
+            chara->platform = platform;
+            chara->on_platform = true;
+        }
+        my = oy;
     }
     return my;
 }
@@ -369,11 +420,11 @@ int chara_col_down(const struct Character *chara) {
     return my;
 }
 
-void chara_col_down_platform(struct Character *chara) {
-    struct Platform *tmp;
-    struct Platform *platform = NULL;
+int chara_col_down_platform(struct Character *chara) {
+    int my = chara->map->size_y * 16 + 16, o = 0, py = 0, oy = my;
     chara->on_platform = false;
-    int o = 0;
+    struct Platform *tmp = NULL, *platform = NULL;
+    
     for (int i = chara->l, l = chara->r + 15; i < l; i += 16) {
         o = i -1;
         if (o < chara->l) {
@@ -382,14 +433,28 @@ void chara_col_down_platform(struct Character *chara) {
         } else if (o > chara->r - 1) {
             o = chara->r - 1;
         }
-        tmp = map_col_down_platform(chara->map, chara->x + o, chara->y + 2);
-        if (tmp != NULL && (platform == NULL || tmp->zone->y * 16 + tmp->y < platform->zone->y * 16 + platform->y)) {
-            platform = tmp;
+        
+        my = fmin(map_col_down(chara->map, chara->x + o, chara->y), my);
+        tmp = map_col_down_platform(chara->map, chara->x + o, chara->y, &py);
+        if (tmp) {
+            if (py < oy) {
+                oy = py;
+                platform = tmp;
+            }
+        }
+    }
+    
+    if (platform && oy < my) {
+        if ((chara->y >= oy || (platform->mode == 4 && chara->y >= oy - platform->speed))) {
             chara->platform = platform;
             chara->on_platform = true;
         }
+        my = oy;
     }
+    return my;
 }
+
+
 
 void chara_set_gravity(struct Character *chara, float add, float min, float max) {
     if (min != 0 && max != 0) {

@@ -253,11 +253,11 @@ void editor_update(struct Map *map) {
             }
             
             if (key_pressed(SDLK_F1)) {
-                map_zone_create(map, editor_tile_x, editor_tile_y, 20, 15, 0);
+                map_zone_create(map, editor_tile_x, editor_tile_y, 20, 15, 0, 0);
             }
             
             if (key_pressed(SDLK_F2)) {
-                map_zone_create(map, editor_tile_x, editor_tile_y, 9, 1, 1);
+                map_zone_create(map, editor_tile_x, editor_tile_y, 9, 1, 1, 0);
             }  
             
             if (key_pressed(SDLK_1)) {

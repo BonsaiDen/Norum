@@ -10,7 +10,7 @@
 #include "map.h"
 #include "engine.h"
 
-
+#include <time.h>
 #include <stdlib.h>
 #include <SDL.h>
 
@@ -44,6 +44,10 @@ bool playing_get() {
 // Game Functions --------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void game_init() {
+    time_t seconds;
+    time(&seconds);
+    srand((unsigned int)seconds);
+    
     
     // Stage
     gravity_set(true);
@@ -56,7 +60,7 @@ void game_init() {
     if (!map_load(map, "map.data")) {
         map_set_at(map, 0, 0, 1);
         map_set_at(map, 2, 2, 1);
-        map_zone_create(map, 0, 0, 20, 15, 0);
+        map_zone_create(map, 0, 0, 20, 15, 0, 0);
     }
     
     // Player
@@ -107,6 +111,6 @@ void game_quit() {
     map_save(map, "map.data");
     #endif
     map_free(map);
-    free(player);
+    player_free(player);
 }
 

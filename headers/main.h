@@ -1,4 +1,4 @@
-#define EDITOR
+//#define EDITOR
 
 #ifndef EDITOR
     #define WINDOW_WIDTH 320

@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <stdbool.h>
 
+
 struct List;
 struct TileMap;
 struct Player;
@@ -8,6 +9,7 @@ struct Player;
 struct MapZone {
     int x, y, w, h;
     int type;
+    int extra;
 };
 
 struct Platform {
@@ -63,12 +65,17 @@ void map_set_region(struct Map *map, const int x, const int y,
 void map_draw(const struct Map *map);
 void map_render(const struct Map *map, SDL_Surface *bg);
 
+
+// Blocks
 unsigned char map_get_at(const struct Map *map, const int x, const int y);
 void map_set_at(struct Map *map, const int x, const int y, const int block);
 
+
+// Zones and Platforms
 void map_zone_create(const struct Map *map, const int x, const int y,
                                             const int w, const int h,
-                                            const int type);
+                                            const int type,
+                                            const int extra);
 
 struct MapZone *map_zone_get_at(const struct Map *map, const int x,
                                                        const int y,
@@ -97,11 +104,13 @@ void map_control_platforms_vertical(struct Map *map);
 void map_control_platforms_horizontal(struct Map *map);
 void map_control(struct Map *map);
 
+
 // Collision
 int map_col_down(const struct Map *map, const int x, const int y);
 int map_col_up(const struct Map *map, const int x, const int y);
 int map_col_right(const struct Map *map, const int x, const int y);
 int map_col_left(const struct Map *map, const int x, const int y);
 
-struct Platform *map_col_down_platform(const struct Map *map, const int x, const int y);
+struct Platform *map_col_down_platform(const struct Map *map, const int x, const int y, int *oy);
+struct Platform *map_col_up_platform(const struct Map *map, const int x, const int y, int *oy);
 
