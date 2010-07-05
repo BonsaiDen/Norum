@@ -3,20 +3,21 @@
 #include "list.h"
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 
-unsigned char *rle_encode(unsigned const char *data, int *size);
-unsigned char *rle_decode(unsigned const char *data, int size);
+unsigned char *rle_encode(unsigned const char *data, unsigned int *size);
+unsigned char *rle_decode(unsigned const char *data, unsigned int size);
 
 void map_save(struct Map *map, const char *file_name) {
     FILE *fp = fopen(file_name, "w");
     
     // Header
-    int header[] = {map->size_x, map->size_y, 2};
+    int header[] = {map->size_x, map->size_y, 3};
     fwrite(header, sizeof(int), 3, fp);
     
     // Block
-    int block_size = map->size_x * map->size_y;
+    unsigned int block_size = map->size_x * map->size_y;
     unsigned char *data = rle_encode(map->blocks, &block_size);
     fwrite(&block_size, sizeof(int), 1, fp);
     fwrite(data, sizeof(unsigned char), block_size, fp);
@@ -26,19 +27,21 @@ void map_save(struct Map *map, const char *file_name) {
     int zone_count = map->zones->length + map->platform_zones->length;
     fwrite(&zone_count, sizeof(int), 1, fp);
     
-    int *d = (int*)calloc(sizeof(int), 5);
+    int *d = (int*)calloc(sizeof(int), 6);
     for(int i = 0; i < map->zones->length; i++) {
         struct MapZone *zone = (struct MapZone*)list_get(map->zones, i);
         map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
         d[4] = zone->type;
-        fwrite(d, sizeof(int), 5, fp);
+        d[5] = zone->extra;
+        fwrite(d, sizeof(int), 6, fp);
     }
     
     for(int i = 0; i < map->platform_zones->length; i++) {
         struct MapZone *zone = (struct MapZone*)list_get(map->platform_zones, i);
         map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
         d[4] = zone->type;
-        fwrite(d, sizeof(int), 5, fp);
+        d[5] = zone->extra;
+        fwrite(d, sizeof(int), 6, fp);
     }
     free(d);
     fclose(fp);
@@ -51,7 +54,6 @@ bool map_load(struct Map *map, const char *file_name) {
         // Header
         int *header = (int*)calloc(sizeof(int), 3);
         fread(header, sizeof(int), 3, fp);
-        int version = header[2];
         map->pos_x = 0;
         map->pos_y = 0;
         map->map_x = 0;
@@ -62,7 +64,7 @@ bool map_load(struct Map *map, const char *file_name) {
         free(header);
         
         // Blocks
-        int *block_size = (int*)malloc(sizeof(int));
+        unsigned int *block_size = (unsigned int*)malloc(sizeof(unsigned int));
         fread(block_size, sizeof(int), 1, fp);
         
         unsigned char *block_data = (unsigned char*)calloc(sizeof(unsigned char), *block_size);
@@ -78,10 +80,10 @@ bool map_load(struct Map *map, const char *file_name) {
         int *zone_count = (int*)malloc(sizeof(int));
         fread(zone_count, sizeof(int), 1, fp);  
         
-        int *d = (int*)calloc(sizeof(int), 5);
+        int *d = (int*)calloc(sizeof(int), 6);
         for(int i = 0, l = *zone_count; i < l; i++) {
-            fread(d, sizeof(int), version == 1 ? 4 : 5, fp);
-            map_zone_create(map, d[0], d[1], d[2], d[3], version == 1 ? 0 : d[4]);
+            fread(d, sizeof(int), 6, fp);
+            map_zone_create(map, d[0], d[1], d[2], d[3], d[4], d[5]);
         }
         map_platforms_create(map);
         
@@ -96,61 +98,89 @@ bool map_load(struct Map *map, const char *file_name) {
 
 // RLE Encoding ----------------------------------------------------------------
 // -----------------------------------------------------------------------------
-unsigned char *rle_encode(unsigned const char *data, int *size) {
-    int csize = *size;
-    unsigned char *rle = (unsigned char*)calloc(sizeof(unsigned char), csize * 2);
-    
-    char mode = 1;
-    unsigned char current = data[0];
+unsigned char *rle_encode(unsigned const char *input, unsigned int *o_size) {
+    bool mode = true;
+    unsigned int c_size = *o_size, p = 0;
+    unsigned char *out = (unsigned char*)calloc(sizeof(unsigned char), c_size * 2);
+    unsigned char cur = input[0];
     unsigned char count = 1;
-    int elements = 0;
-    for(int i = 1; i < csize; i++) {
+    for(unsigned int i = 1; i < c_size; i++) {
         if (!mode) {
-            current = data[i];
+            cur = input[i];
             count = 1;
-            mode = 1;
+            mode = true;
         
-        } else if (data[i] == current) {
+        } else if (input[i] == cur) {
             count++;
             if (count == 255) {
-                rle[elements] = count;
-                rle[elements + 1] = current;
-                elements += 2;
-                mode = 0;
+                out[p] = 16 + cur;
+                out[p + 1] = count;
+                p += 2;
+                mode = false;
             }
         
         } else {
-            rle[elements] = count;
-            rle[elements + 1] = current;
-            elements += 2;
-            current = data[i];
+            if (count == 1) {
+                out[p] = cur;
+                p += 1;
+            
+            } else {
+                out[p] = 16 + cur;
+                out[p + 1] = count;
+                p += 2;
+            }
+            cur = input[i];
             count = 1;
         }
     }
     
     if (mode) {
-        rle[elements] = count;
-        rle[elements + 1] = current;
-        elements += 2;
+        if (count == 1) {
+            out[p] = cur;
+            p += 1;
+        
+        } else {
+            out[p] = 16 + cur;
+            out[p + 1] = count;
+            p += 2;
+        }
+        p += 2;
     }
-    *size = elements;
-    return rle;
+    *o_size = p;
+    return out;
 }
 
-unsigned char *rle_decode(unsigned const char *data, int size) {
-    int csize = size;
-    int complete_size = 0;
-    for(int i = 0; i < csize; i+= 2) {
-        complete_size += data[i];
-    }
-    
-    unsigned char *rle = (unsigned char*)calloc(sizeof(unsigned char), complete_size);
-    for(int i = 0, pos = 0; i < csize; i+= 2) {
-        for(int e = 0, l = data[i], c = data[i + 1]; e < l; e++) {
-            rle[pos] = c;
-            pos++;
+unsigned char *rle_decode(unsigned const char *input, unsigned int i_size) {
+    unsigned int c_size = 0;
+    unsigned char cur = 0;
+    for(unsigned int i = 0; i < i_size;) {
+        cur = input[i];
+        if (cur >= 16) {
+            c_size += input[i + 1];
+            i += 2;
+        
+        } else {
+            c_size += 1;
+            i += 1;
         }
     }
-    return rle;
+    
+    unsigned char *out = (unsigned char*)calloc(sizeof(unsigned char), c_size);
+    for(unsigned int i = 0, pos = 0; i < i_size;) {
+        cur = input[i];
+        if (cur >= 16) {
+            for(unsigned char e = 0, l = input[i + 1]; e < l; e++) {
+                out[pos] = cur - 16;
+                pos++;
+            }
+            i += 2;
+        
+        } else {
+            out[pos] = cur;
+            pos += 1;
+            i += 1;
+        }
+    }
+    return out;
 }
 
