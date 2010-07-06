@@ -2,6 +2,8 @@
 #include "map.h"
 #include "engine.h"
 
+#include "marco.h"
+
 #include <stdlib.h>
 #include <math.h>
 
@@ -17,6 +19,9 @@ int chara_col_left(const struct Character *chara);
 int chara_col_right(const struct Character *chara);
 int chara_col_up(const struct Character *chara);
 int chara_col_down(const struct Character *chara);
+
+void chara_move(struct Character *chara);
+void chara_fall(struct Character *chara, const bool fall_off);
 
 
 struct Character *chara_create(struct Map *map, const int x, const int y,
@@ -80,16 +85,16 @@ void chara_update(struct Character *chara, const bool has_control,
         
         } else {
             chara->grav_fall += chara->grav_add;
-        }
-        
-        if (chara->grav_add > 0) {
-            if (chara->grav_fall > chara->grav_max) {
-                chara->grav_fall = chara->grav_max;
-            }
-        
-        } else if (chara->grav_add < 0) {
-            if (chara->grav_fall < chara->grav_min) {
-                chara->grav_fall = chara->grav_min;
+
+            if (chara->grav_add > 0) {
+                if (chara->grav_fall > chara->grav_max) {
+                    chara->grav_fall = chara->grav_max;
+                }
+            
+            } else if (chara->grav_add < 0) {
+                if (chara->grav_fall < chara->grav_min) {
+                    chara->grav_fall = chara->grav_min;
+                }
             }
         }
     }
@@ -98,48 +103,60 @@ void chara_update(struct Character *chara, const bool has_control,
 
 // Horizontal Movement ---------------------------------------------------------
 // -----------------------------------------------------------------------------
-bool chara_move(struct Character *chara) {
+void chara_move(struct Character *chara) {
     chara->grav_relative = chara->y - chara->oy;
     chara->oy = chara->y;
     
     int mx, offset;
     chara->speed = chara->move_speed;
     
-    if (chara->use_platforms) {
-        if (chara->on_platform) {
-            if (chara->platform->mode == 2) {
-                chara->speed += chara->platform->speed;
-            
-            } else if (chara->platform->mode == 8) {
-                chara->speed -= chara->platform->speed;
-            }
+    if (chara->use_platforms && chara->on_platform) {
+        if (chara->platform->mode == 2) {
+            chara->speed += chara->platform->speed;
+        
+        } else if (chara->platform->mode == 8) {
+            chara->speed -= chara->platform->speed;
         }
     }
     
-    chara_limit_x(chara, &mx, &offset);
-    chara_check_x(chara, true, 0);
     
-    for (int i = 0, l = abs(chara->speed); i < l; i++) {
-        if (chara_check_x(chara, false, offset)) {
-            return true;
+    if (chara->speed == 0) {
+        int mr = chara_col_right(chara) - chara->r;
+        if (chara->x > mr) {
+            chara->x = mr;
+            return;
         }
         
-        if (chara->speed < 0) {
-            chara->x -= 1;
-            if (chara->x < mx) {
-                chara->x = mx;
-                return true;
-            }
+        int ml = chara_col_left(chara) - chara->l;
+        if (chara->x < ml) {
+            chara->x = ml;
+            return;
+        }
+        
+    } else {
+        chara_limit_x(chara, &mx, &offset);
+        chara_check_x(chara, true, 0);
+        
+        for (int i = 0, l = abs(chara->speed); i < l; i++) {
+            if (chara_check_x(chara, false, offset)) {
+                return;
             
-        } else if (chara->speed > 0) {
-            chara->x += 1;
-            if (chara->x > mx) {
-                chara->x = mx;
-                return true;
+            } else if (chara->speed < 0) {
+                chara->x -= 1;
+                if (chara->x < mx) {
+                    chara->x = mx;
+                    return;
+                }
+                
+            } else if (chara->speed > 0) {
+                chara->x += 1;
+                if (chara->x > mx) {
+                    chara->x = mx;
+                    return;
+                }
             }
         }
     }
-    return false;
 }
 
 bool chara_check_x(struct Character *chara, const bool init, const int offset) {
@@ -176,12 +193,33 @@ void chara_limit_x(const struct Character *chara, int *mx, int *offset) {
         *offset = chara->r;
     
     } else {
-        *mx = chara_col_left(chara) - abs(chara->l);
-        *offset = chara->l - 1; 
+        *mx = chara_col_left(chara) - chara->l;
+        *offset = chara->l - 1;
     }
 }
 
+int chara_col_left_platform(const struct Character *chara) {
+    int mx = 0, o = 0, ox = 0;
+    for (int i = 0, l = chara->h + 15; i < l; i += 8) {
+        o = i -1;
+        if (o < 1) {
+            o = 1;
+        
+        } else if (o > chara->h) {
+            o = chara->h;
+        }
+        
+        mx = fmax(map_col_left(chara->map, chara->x + chara->l, chara->y - o), mx);
+        ox = fmax(map_col_left_platform(chara->map, chara->x + chara->l, chara->y - o), ox);
+    }
+    return fmax(mx, ox);
+}
+
 int chara_col_left(const struct Character *chara) {
+    if (chara->use_platforms) {
+        return chara_col_left_platform(chara);
+    }
+    
     int mx = 0, o = 0;
     for (int i = 0, l = chara->h + 15; i < l; i += 8) {
         o = i -1;
@@ -192,16 +230,13 @@ int chara_col_left(const struct Character *chara) {
             o = chara->h;
         }
         
-        mx = fmax(map_col_left(chara->map, 
-                              chara->x + chara->l,
-                              chara->y - o), mx);
-        
+        mx = fmax(map_col_left(chara->map, chara->x + chara->l, chara->y - o), mx);
     }
     return mx;
 }
 
-int chara_col_right(const struct Character *chara) {
-    int mx = chara->map->size_x * 16 + 16, o = 0;
+int chara_col_right_platform(const struct Character *chara) {
+    int mx = chara->map->size_x * 16 + 16, o = 0, ox = mx;
     for (int i = 0, l = chara->h + 15; i < l; i += 8) {
         o = i -1;
         if (o < 1) {
@@ -211,10 +246,27 @@ int chara_col_right(const struct Character *chara) {
             o = chara->h;
         }
         
-        mx = fmin(map_col_right(chara->map,
-                                chara->x + chara->r,
-                                chara->y - o), mx);
+        mx = fmin(map_col_right(chara->map, chara->x + chara->r, chara->y - o), mx);
+        ox = fmin(map_col_right_platform(chara->map, chara->x + chara->r, chara->y - o), ox);
+    }
+    return fmin(mx, ox);
+}
+
+int chara_col_right(const struct Character *chara) {
+    if (chara->use_platforms) {
+        return chara_col_right_platform(chara);
+    }
+    
+    int mx = chara->map->size_x * 16 + 16, o = 0;
+    for (int i = 0, l = chara->h + 15; i < l; i += 8) {
+        o = i -1;
+        if (o < 1) {
+            o = 1;
         
+        } else if (o > chara->h) {
+            o = chara->h;
+        }
+        mx = fmin(map_col_right(chara->map, chara->x + chara->r, chara->y - o), mx);
     }
     return mx;
 }
@@ -222,13 +274,13 @@ int chara_col_right(const struct Character *chara) {
 
 // Vertical Movement -----------------------------------------------------------
 // -----------------------------------------------------------------------------
-bool chara_fall(struct Character *chara, const bool fall_off) {
+void chara_fall(struct Character *chara, const bool fall_off) {
     chara->speed_relative = chara->x - chara->ox;
     chara->ox = chara->x;
     
     if (fall_off) {
         chara->y += chara->grav_relative;
-        return false;
+        return;
     }
     chara->grav = chara->grav_fall;
 
@@ -250,7 +302,7 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
     }
     
     if (chara->on_ground) {
-        return false;
+        return;
     }
     
     int grav;
@@ -264,9 +316,9 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
     chara_check_y(chara, true, 0);
     for (int i = 0, l = fmax(grav, 1); i < l; i++) {
         if (chara_check_y(chara, false, offset)) {
-            return true;
-        }
-        if (chara->grav < chara->grav_zero) {
+            return;
+        
+        } else if (chara->grav < chara->grav_zero) {
             chara->y -= 1;
             if (chara->y < my) {
                 chara->grav_fall = 0;
@@ -275,7 +327,7 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
                 if (chara->grav_add < 0) {
                     chara->on_ground = true;
                 }
-                return true;
+                return;
             }
         
         } else if(chara->grav >= chara->grav_zero) {
@@ -287,11 +339,10 @@ bool chara_fall(struct Character *chara, const bool fall_off) {
                 if (chara->grav_add > 0) {
                     chara->on_ground = true;
                 }
-                return true;
+                return;
             }
         }
     }
-    return false;
 }
 
 void chara_limit_y(struct Character *chara, int *my, int *offset) {
@@ -310,9 +361,6 @@ void chara_limit_y(struct Character *chara, int *my, int *offset) {
     
     } else {
         if (chara->grav <= chara->grav_zero) {
-            
-       //     int y = chara_col_up(chara) + chara->h;
-            
             int y = chara->use_platforms ? chara_col_up_platform(chara) + chara->h : chara_col_up(chara) + chara->h;
             chara->on_ground = y < chara->y ? false : true;
             *my = y;
@@ -331,8 +379,11 @@ bool chara_check_y(struct Character *chara, bool init, int offset) {
     if (chara->speed < 0) {
         dx = chara_col_left(chara);
     
-    } else {
+    } else if (chara->speed > 0) {
         dx = chara_col_right(chara);
+    
+    } else {
+        return false;
     }
     
     if (init) {
@@ -370,7 +421,6 @@ int chara_col_up(const struct Character *chara) {
     return my;
 }
 
-
 int chara_col_up_platform(struct Character *chara) {
     int my = 0, o = 0, py = 0, oy = 0;
     chara->on_platform = false;
@@ -387,7 +437,7 @@ int chara_col_up_platform(struct Character *chara) {
         
         my = fmax(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
         tmp = map_col_up_platform(chara->map, chara->x + o, chara->y - chara->h, &py);
-        if (tmp) {
+        if (unlikely(tmp != NULL)) {
             if (py > oy) {
                 oy = py;
                 platform = tmp;
@@ -395,7 +445,7 @@ int chara_col_up_platform(struct Character *chara) {
         }
     }
     
-    if (platform && oy > my) {
+    if (unlikely(platform && oy > my)) {
         if ((chara->y- chara->h <= oy || (platform->mode == 1 && chara->y - chara->h <= oy + 8))) {
             chara->platform = platform;
             chara->on_platform = true;
@@ -436,7 +486,7 @@ int chara_col_down_platform(struct Character *chara) {
         
         my = fmin(map_col_down(chara->map, chara->x + o, chara->y), my);
         tmp = map_col_down_platform(chara->map, chara->x + o, chara->y, &py);
-        if (tmp) {
+        if (unlikely(tmp != NULL)) {
             if (py < oy) {
                 oy = py;
                 platform = tmp;
@@ -444,7 +494,7 @@ int chara_col_down_platform(struct Character *chara) {
         }
     }
     
-    if (platform && oy < my) {
+    if (unlikely(platform && oy < my)) {
         if ((chara->y >= oy || (platform->mode == 4 && chara->y >= oy - platform->speed))) {
             chara->platform = platform;
             chara->on_platform = true;
@@ -453,8 +503,6 @@ int chara_col_down_platform(struct Character *chara) {
     }
     return my;
 }
-
-
 
 void chara_set_gravity(struct Character *chara, float add, float min, float max) {
     if (min != 0 && max != 0) {
@@ -472,9 +520,8 @@ void chara_render(const struct Character *chara) {
     int x, y;
     map_to_buffer(chara->map, chara->x + chara->l, chara->y - chara->h, &x, &y);
     
-    draw_rect_filled(chara->map->buffer, x, y, 
-                                         chara->w, chara->h,
-                                         color_create(255, 255, 0));
-    
+    draw_rect_filled(chara->map->buffer, x, y, chara->w, chara->h,
+                                               color_create(255, 255, 0));
+        
 }
 

@@ -48,6 +48,7 @@ void game_init() {
     time(&seconds);
     srand((unsigned int)seconds);
     
+    SDL_WM_SetCaption(WINDOW_TITLE, WINDOW_TITLE);
     
     // Stage
     gravity_set(true);
@@ -108,9 +109,13 @@ void game_render(struct Screen *screen) {
 
 void game_quit() {
     #ifdef EDITOR
+    printf("saving map...\n");
     map_save(map, "map.data");
+    printf("map saved...\n");
     #endif
+    printf("freeing map...\n");
     map_free(map);
+    printf("freeing player...\n");
     player_free(player);
 }
 

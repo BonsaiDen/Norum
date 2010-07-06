@@ -19,7 +19,9 @@ struct Player *player_create(struct Map *map, const int x, const int y) {
 }
 
 void player_free(struct Player *player) {
+    printf("freeing chara...\n");
     chara_free(player->chara);
+    printf("freeing player struct...\n");
     free(player);
 }
 

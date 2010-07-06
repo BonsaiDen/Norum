@@ -51,11 +51,12 @@ int engine_create(int width, int height, int scale, int fps) {
             engine_pause(!engine->paused);
         }
         if (!engine->paused) {
-            engine_update();
+            game_update();
         }
         engine_clear_keys();
         engine_clear_mouse();
-        engine_render(engine->screen);
+        game_render(engine->screen);
+        SDL_Flip(engine->screen->bg);
         
         // Limit FPS
         render_diff = SDL_GetTicks() - render_start;
@@ -103,15 +104,6 @@ bool engine_init(int width, int height, int scale, int fps) {
     engine->list_surfaces = list_create(16);
     engine->running = true;
     return true;
-}
-
-void engine_update() {
-    game_update();
-}
-
-void engine_render(struct Screen *screen) {
-    game_render(screen);
-    SDL_Flip(engine->screen->bg);
 }
 
 void engine_cleanup() {
@@ -276,7 +268,7 @@ void mouse_get_pos(int *x, int *y) {
 // -----------------------------------------------------------------------------
 SDL_Surface *image_create(int w, int h, long int key) {
     SDL_PixelFormat *format = engine->screen->format;
-    SDL_Surface *img = SDL_CreateRGBSurface(SDL_RLEACCEL, w, h,
+    SDL_Surface *img = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_RLEACCEL, w, h,
                                             format->BitsPerPixel, 
                                             format->Rmask,
                                             format->Gmask,
@@ -297,7 +289,7 @@ SDL_Surface *image_load(const char* file, long int key) {
         engine_crash("Image loading failed");
     }
     
-    SDL_Surface *img = SDL_ConvertSurface(tmp, engine->screen->format, SDL_RLEACCEL);
+    SDL_Surface *img = SDL_ConvertSurface(tmp, engine->screen->format, SDL_HWSURFACE | SDL_RLEACCEL);
     SDL_FreeSurface(tmp);
     image_color_key(img, key);
     list_add(engine->list_surfaces, img);

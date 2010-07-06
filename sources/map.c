@@ -4,6 +4,8 @@
 #include "game.h"
 #include "engine.h"
 #include "list.h"
+#include "marco.h"
+#include "main.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -12,9 +14,9 @@
 
 void map_platforms_remove(const struct Map *map);
 
-int randint(int low, int high) {
-    return rand() % (high - low + 1) + low;
-}
+//int randint(const int low, const int high) {
+ //   return rand() % (high - low + 1) + low;
+//}
 
 struct Map *map_create(const int width, const int height,
                        const int size_x, const int size_y,
@@ -102,7 +104,7 @@ void map_render(const struct Map *map, SDL_Surface *bg) {
 }
 
 unsigned char map_get_at(const struct Map *map, const int x, const int y) {
-    if (x < 0 || y < 0 || x > map->size_x - 1 || y > map->size_y - 1) {
+    if (unlikely((x < 0 || y < 0 || x > map->size_x - 1 || y > map->size_y - 1))) {
         return 1;
     
     } else {
@@ -119,10 +121,16 @@ void map_set_at(struct Map *map, const int x, const int y, const int block) {
 void map_set_region(struct Map *map, const int x, const int y,
                                      const int w, const int h) {
     
+    #ifdef EDITOR
     if (map->buffer != NULL) {
         SDL_FreeSurface(map->buffer);
     }
     map->buffer = image_create(w, h, -1);
+    
+    #else
+    map->buffer = screen_get()->bg;
+    #endif
+    
     map->draw_x = x;
     map->draw_y = y;
     map->tiles_x = w / 16;
@@ -176,24 +184,36 @@ void map_platforms_create(const struct Map *map) {
         struct Platform *platform = (struct Platform*)malloc(sizeof(struct Platform));
         platform->zone = (struct MapZone*)list_get(map->platform_zones, i);
         
-        if (platform->zone->w > 2) {
-            platform->x = randint(0, platform->zone->w * 16 - 32);
-            platform->y = 0;
-            platform->mode = randint(0, 1) ? 2 : 8;
-            platform->speed = 2;
-        
-        } else if (platform->zone->h > 1) {
-            platform->x = 0;
-            platform->y = randint(0, platform->zone->h * 16 - 16);
-            platform->mode = randint(0, 1) ? 1 : 4;
-            platform->speed = 1;
-        
-        } else {
-            platform->x = 0;
+        if (platform->zone->extra == 0) {
+            platform->x = platform->zone->w * 16 / 2 - 16;
             platform->y = 0;
             platform->mode = 0;
-            platform->speed = 0;
-        }        
+            platform->speed = 1;
+        
+        } else if (platform->zone->extra == 2) {
+            platform->speed = 1;
+            platform->y = 0;
+            platform->x = platform->zone->w * 16 - 32;
+            platform->mode = 8;
+        
+        } else if (platform->zone->extra == 8) {
+            platform->speed = 1;
+            platform->y = 0;
+            platform->x = 0;
+            platform->mode = 2;
+        
+        } else if (platform->zone->extra == 4) {
+            platform->speed = 1;
+            platform->x = 0;
+            platform->y = platform->zone->h * 16 - 8;
+            platform->mode = 1;
+        
+        } else if (platform->zone->extra == 1) {
+            platform->speed = 1;
+            platform->x = 0;
+            platform->y = 0;
+            platform->mode = 4;
+        }
         list_append(map->platforms, platform);
     }
 }
@@ -685,7 +705,7 @@ int map_col_horizontal(const struct Map *map, const int x,
         }
         px += add;
     }
-    return px * 16 + (add == 1 ? 0 : 32);
+    return px * 16 + (add == 1 ? 0 : 16);
 }
 
 int map_col_right(const struct Map *map, const int x, const int y) {
@@ -696,15 +716,48 @@ int map_col_left(const struct Map *map, const int x, const int y) {
     return map_col_horizontal(map, x, y, -1);
 }
 
+
+int map_col_right_platform(const struct Map *map, const int x, const int y) {
+    struct Platform *tmp = NULL;    
+    int mx = map->size_y * 16 + 16, px, py;
+    for(int i = 0, l = map->platforms_local->length; i < l; i++) {
+        tmp = (struct Platform*)list_get(map->platforms_local, i);
+        px = tmp->zone->x * 16 + tmp->x;
+        if (px < mx && x <= px + tmp->speed) {
+            py = tmp->zone->y * 16 + tmp->y;
+            if (y >= py && y < py + 8) {
+                mx = px;
+            }
+        }
+    }
+    return mx;
+}
+
+int map_col_left_platform(const struct Map *map, const int x, const int y) {
+    struct Platform *tmp = NULL;    
+    int mx = 0, px, py;
+    for(int i = 0, l = map->platforms_local->length; i < l; i++) {
+        tmp = (struct Platform*)list_get(map->platforms_local, i);
+        px = tmp->zone->x * 16 + tmp->x + 32;
+        if (px > mx && x >= px - tmp->speed) {
+            py = tmp->zone->y * 16 + tmp->y;
+            if (y >= py && y < py + 8) {
+                mx = px;
+            }
+        }
+    }
+    return mx;
+}
+
 struct Platform *map_col_down_platform(const struct Map *map, const int x, const int y, int *oy) {
     struct Platform *platform = NULL, *tmp = NULL;    
     int my = map->size_y * 16 + 16, px, py;
     for(int i = 0, l = map->platforms_local->length; i < l; i++) {
         tmp = (struct Platform*)list_get(map->platforms_local, i);
         py = tmp->zone->y * 16 + tmp->y;
-        if (py < my && y <= py + 8) {
+        if (py < my && y <= py + tmp->speed) {
             px = tmp->zone->x * 16 + tmp->x;
-            if (x >= px && x <= px + 32) {
+            if (x >= px && x < px + 32) {
                 platform = tmp;
                 my = py;
             }
@@ -720,9 +773,9 @@ struct Platform *map_col_up_platform(const struct Map *map, const int x, const i
     for(int i = 0, l = map->platforms_local->length; i < l; i++) {
         tmp = (struct Platform*)list_get(map->platforms_local, i);
         py = tmp->zone->y * 16 + tmp->y + 8;
-        if (py > my && y >= py - 8) {
+        if (py > my && y >= py - tmp->speed) {
             px = tmp->zone->x * 16 + tmp->x;
-            if (x >= px && x <= px + 32) {
+            if (x >= px && x < px + 32) {
                 platform = tmp;
                 my = py;
             }
@@ -731,5 +784,4 @@ struct Platform *map_col_up_platform(const struct Map *map, const int x, const i
     *oy = my;
     return platform;
 }
-
 

@@ -76,7 +76,7 @@ void editor_edit_zones(struct Map *map, int px, int py, bool shift, bool ctrl) {
         map_zone_get_region(editor_zone, &sx, &sy, &ex, &ey);
         
         // Delete
-        if (mouse_down(SDL_BUTTON_RIGHT) && ctrl) {
+        if (mouse_pressed(SDL_BUTTON_RIGHT) && ctrl) {
             map_zone_delete(map, editor_zone);
             return;
         }
@@ -267,6 +267,28 @@ void editor_update(struct Map *map) {
                 editor_draw_tile = 2;
             }
         }
+        
+        if (editor_zone) {
+            if (editor_zone->h > 1) {
+                if (key_pressed(SDLK_UP)) {
+                    editor_zone->extra = 1;
+                
+                } else if (key_pressed(SDLK_DOWN)) {
+                    editor_zone->extra = 4;
+                }
+            
+            } else if (editor_zone->w > 2) {
+                if (key_pressed(SDLK_LEFT)) {
+                    editor_zone->extra = 8;
+                
+                } else if (key_pressed(SDLK_RIGHT)) {
+                    editor_zone->extra = 2;
+                }
+            }
+            if (key_pressed(SDLK_END)) {
+                editor_zone->extra = 0;
+            }
+        }
     
     } else {
         editor_zone = NULL;
@@ -297,7 +319,22 @@ void editor_render(struct Map *map, SDL_Surface *bg) {
         map_zone_get_region(zone, &px, &py, &w, &h);
         map_to_screen(map, px * 16, py * 16, &px, &py);
         draw_rect(bg, px, py, w * 16, h * 16, editor_zone == zone ? yellow : blue);
+        
+        if (zone->extra == 1) {
+            draw_rect_filled(bg, px + 2, py + 2, 28, 4, editor_zone == zone ? yellow : blue);  
+        
+        } else if (zone->extra == 4) {
+            draw_rect_filled(bg, px + 2, py + h * 16 - 6, 28, 4, editor_zone == zone ? yellow : blue);  
+        
+        } else if (zone->extra == 0) {
+            draw_rect_filled(bg, px + w * 16 / 2 - 14, py + h * 16 / 2 - 6, 28, 4, editor_zone == zone ? yellow : blue);
+        
+        } else if (zone->extra == 8) {
+            draw_rect_filled(bg, px + 2, py + 2, 28, 4, editor_zone == zone ? yellow : blue);  
+        
+        } else if (zone->extra == 2) {
+            draw_rect_filled(bg, px + w * 16 - 28, py + 2, 28, 4, editor_zone == zone ? yellow : blue);  
+        }
     }
-    
 }
 

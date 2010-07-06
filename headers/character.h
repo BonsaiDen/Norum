@@ -40,9 +40,3 @@ void chara_update(struct Character *chara, const bool has_control,
 
 void chara_render(const struct Character *chara);
 
-bool chara_move(struct Character *chara);
-
-
-bool chara_fall(struct Character *chara, const bool fall_off);
-
-

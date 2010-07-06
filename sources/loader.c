@@ -52,8 +52,9 @@ bool map_load(struct Map *map, const char *file_name) {
     if (fp != NULL) {
     
         // Header
+        int result = 0;
         int *header = (int*)calloc(sizeof(int), 3);
-        fread(header, sizeof(int), 3, fp);
+        result = fread(header, sizeof(int), 3, fp);
         map->pos_x = 0;
         map->pos_y = 0;
         map->map_x = 0;
@@ -65,10 +66,10 @@ bool map_load(struct Map *map, const char *file_name) {
         
         // Blocks
         unsigned int *block_size = (unsigned int*)malloc(sizeof(unsigned int));
-        fread(block_size, sizeof(int), 1, fp);
+        result = fread(block_size, sizeof(int), 1, fp);
         
         unsigned char *block_data = (unsigned char*)calloc(sizeof(unsigned char), *block_size);
-        fread(block_data, sizeof(unsigned char), *block_size, fp);
+        result = fread(block_data, sizeof(unsigned char), *block_size, fp);
         
         unsigned char *tmp = map->blocks;
         map->blocks = rle_decode(block_data, *block_size);
@@ -78,11 +79,11 @@ bool map_load(struct Map *map, const char *file_name) {
         
         // Zones
         int *zone_count = (int*)malloc(sizeof(int));
-        fread(zone_count, sizeof(int), 1, fp);  
+        result = fread(zone_count, sizeof(int), 1, fp);  
         
         int *d = (int*)calloc(sizeof(int), 6);
         for(int i = 0, l = *zone_count; i < l; i++) {
-            fread(d, sizeof(int), 6, fp);
+            result = fread(d, sizeof(int), 6, fp);
             map_zone_create(map, d[0], d[1], d[2], d[3], d[4], d[5]);
         }
         map_platforms_create(map);

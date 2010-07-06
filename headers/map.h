@@ -111,6 +111,8 @@ int map_col_up(const struct Map *map, const int x, const int y);
 int map_col_right(const struct Map *map, const int x, const int y);
 int map_col_left(const struct Map *map, const int x, const int y);
 
+int map_col_left_platform(const struct Map *map, const int x, const int y);
+int map_col_right_platform(const struct Map *map, const int x, const int y);
 struct Platform *map_col_down_platform(const struct Map *map, const int x, const int y, int *oy);
 struct Platform *map_col_up_platform(const struct Map *map, const int x, const int y, int *oy);
 

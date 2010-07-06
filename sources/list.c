@@ -1,5 +1,7 @@
 #include "list.h"
 
+#include "marco.h"
+
 #include <stdlib.h>
 
 
@@ -14,7 +16,7 @@ struct List *list_create(const int size) {
 
 // O(1) Operations -------------------------------------------------------------
 void *list_append(struct List *list, void *p) {
-    if (list->length > list->size - 1) {
+    if (unlikely(list->length > list->size - 1)) {
         list->size *= 2;
         
         void **tmp;
@@ -31,8 +33,7 @@ void *list_append(struct List *list, void *p) {
 
 void *list_get(struct List *list, const int o_index) {
     const int index = o_index < 0 ? list->length + o_index : o_index;
-    
-    if (index < 0 || index > list->length - 1 || !list->items[index]) {
+    if (unlikely(index < 0 || index > list->length - 1 || !list->items[index])) {
         return NULL;
     
     } else {
@@ -44,11 +45,11 @@ void *list_get(struct List *list, const int o_index) {
 // O(1) / O(n) Operations ------------------------------------------------------
 void *list_insert(struct List *list, const int o_index, void *p) {
     const int index = o_index < 0 ? list->length + o_index : o_index;
-    if (index < 0 || index > list->length ) {
+    if (unlikely(index < 0 || index > list->length)) {
         return NULL;
     
     } else {
-        if (list->length > list->size - 1) {
+        if (unlikely(list->length > list->size - 1)) {
             list->size *= 2;
             
             void **tmp;
@@ -70,8 +71,7 @@ void *list_insert(struct List *list, const int o_index, void *p) {
 
 void *list_pop(struct List *list, const int o_index) {
     const int index = o_index < 0 ? list->length + o_index : o_index;
-    
-    if (index < 0 || index > list->length - 1 || !list->items[index]) {
+    if (unlikely(index < 0 || index > list->length - 1 || !list->items[index])) {
         return NULL;
     
     } else {
