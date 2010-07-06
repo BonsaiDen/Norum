@@ -1,5 +1,5 @@
 #include <SDL.h>
-#include <stdbool.h>
+#include "macro.h"
 
 
 struct List;

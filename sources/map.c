@@ -4,8 +4,6 @@
 #include "game.h"
 #include "engine.h"
 #include "list.h"
-#include "marco.h"
-#include "main.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -548,13 +546,13 @@ void map_control_platforms_vertical(struct Map *map) {
             platform = (struct Platform*)list_get(map->platforms_local, i);
             if (platform->mode == 4) {
                 platform->y += platform->speed;
-                if (platform->y >= platform->zone->h * 16 - 8) {
+                if (platform->y > platform->zone->h * 16 - 8) {
                     platform->y = platform->zone->h * 16 - 8;
                     platform->mode = 1;
                 }
             } else if (platform->mode == 1) {
                 platform->y -= platform->speed;
-                if (platform->y <= 0) {
+                if (platform->y < 0) {
                     platform->y = 0;
                     platform->mode = 4;
                 }
@@ -570,14 +568,14 @@ void map_control_platforms_horizontal(struct Map *map) {
             platform = (struct Platform*)list_get(map->platforms_local, i);
             if (platform->mode == 2) {
                 platform->x += platform->speed;
-                if (platform->x >= platform->zone->w * 16 - 32) {
+                if (platform->x > platform->zone->w * 16 - 32) {
                     platform->x = platform->zone->w * 16 - 32;
                     platform->mode = 8;
                 }
             
             } else if (platform->mode == 8) {
                 platform->x -= platform->speed;
-                if (platform->x <= 0) {
+                if (platform->x < 0) {
                     platform->x = 0;
                     platform->mode = 2;
                 }

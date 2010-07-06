@@ -8,7 +8,8 @@ struct Player {
     bool has_control;
     bool fall_off;
     bool jumped;
-} Player;
+    bool crouch;
+};
 
 struct Player *player_create(struct Map *map, const int x, const int y);
 void player_free(struct Player *player);

@@ -1,4 +1,4 @@
-#include "main.h"
+#include "macro.h"
 #include "game.h"
 
 #ifdef EDITOR

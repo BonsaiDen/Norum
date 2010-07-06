@@ -32,7 +32,7 @@ struct Screen *screen_create(int width, int height, int scale);
 // Engine ----------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 int engine_create(int width, int height, int scale, int fps) {
-    engine = malloc(sizeof(struct Engine));
+    engine = (struct Engine*)malloc(sizeof(struct Engine));
     
     if (!engine_init(width, height, scale, fps)) {
         free(engine);

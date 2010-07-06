@@ -5,6 +5,7 @@
 #include "map.h"
 #include "game.h"
 #include "engine.h"
+#include "macro.h"
 
 #include <SDL_image.h>
 #include <SDL.h>

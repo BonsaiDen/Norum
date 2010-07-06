@@ -3,7 +3,6 @@
 #include "list.h"
 
 #include <stdlib.h>
-#include <stdbool.h>
 
 
 unsigned char *rle_encode(unsigned const char *data, unsigned int *size);

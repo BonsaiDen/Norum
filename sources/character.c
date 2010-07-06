@@ -2,8 +2,6 @@
 #include "map.h"
 #include "engine.h"
 
-#include "marco.h"
-
 #include <stdlib.h>
 #include <math.h>
 
@@ -28,7 +26,7 @@ struct Character *chara_create(struct Map *map, const int x, const int y,
                                                 const int width,
                                                 const int height) {
     
-    struct Character *chara = malloc(sizeof(struct Character));
+    struct Character *chara = (struct Character*)malloc(sizeof(struct Character));
     chara->map = map;
     
     chara->x = x;
@@ -285,6 +283,7 @@ void chara_fall(struct Character *chara, const bool fall_off) {
     chara->grav = chara->grav_fall;
 
     int my, offset;
+    chara->on_platform = false;
     chara_limit_y(chara, &my, &offset);
     if (chara->use_platforms && (!chara->on_ground || chara->on_platform)) {
         if (chara->on_platform && chara->grav >= chara->grav_zero) {
@@ -345,6 +344,15 @@ void chara_fall(struct Character *chara, const bool fall_off) {
     }
 }
 
+int chara_get_space_y(struct Character *chara) {
+    if (chara->grav_add > 0) {
+        return chara->y - (chara_col_up(chara) + chara->h);
+    
+    } else {
+        return chara_col_down(chara) - chara->y;
+    }
+}
+
 void chara_limit_y(struct Character *chara, int *my, int *offset) {
     if (chara->grav_add > 0) {
         if (chara->grav >= chara->grav_zero) {
@@ -354,7 +362,6 @@ void chara_limit_y(struct Character *chara, int *my, int *offset) {
             *offset = 0;
         
         } else {
-            chara->on_platform = false;
             *my = chara_col_up(chara) + chara->h;
             *offset = chara->h + 1;
         }
@@ -367,7 +374,6 @@ void chara_limit_y(struct Character *chara, int *my, int *offset) {
             *offset = chara->h + 1;
         
         } else {
-            chara->on_platform = false;
             *my = chara_col_down(chara);
             *offset = 0;
         }
@@ -415,17 +421,14 @@ int chara_col_up(const struct Character *chara) {
         } else if (o > chara->r - 1) {
             o = chara->r - 1;
         }
-        my = fmax(map_col_up(chara->map, chara->x + o,
-                             chara->y - chara->h), my);
+        my = fmax(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
     }
     return my;
 }
 
 int chara_col_up_platform(struct Character *chara) {
     int my = 0, o = 0, py = 0, oy = 0;
-    chara->on_platform = false;
     struct Platform *tmp = NULL, *platform = NULL;
-    
     for (int i = chara->l, l = chara->r + 15; i < l; i += 16) {
         o = i -1;
         if (o < chara->l) {
@@ -471,10 +474,8 @@ int chara_col_down(const struct Character *chara) {
 }
 
 int chara_col_down_platform(struct Character *chara) {
-    int my = chara->map->size_y * 16 + 16, o = 0, py = 0, oy = my;
-    chara->on_platform = false;
+    int my = chara->map->size_y * 16 + 16, o = 0, py = 0, oy = my;    
     struct Platform *tmp = NULL, *platform = NULL;
-    
     for (int i = chara->l, l = chara->r + 15; i < l; i += 16) {
         o = i -1;
         if (o < chara->l) {
@@ -522,6 +523,6 @@ void chara_render(const struct Character *chara) {
     
     draw_rect_filled(chara->map->buffer, x, y, chara->w, chara->h,
                                                color_create(255, 255, 0));
-        
+    
 }
 

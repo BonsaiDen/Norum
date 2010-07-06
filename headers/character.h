@@ -1,4 +1,4 @@
-#include <stdbool.h>
+#include "macro.h"
 
 struct Map;
 struct Platform;
@@ -39,4 +39,6 @@ void chara_update(struct Character *chara, const bool has_control,
                                            const bool fall_off);
 
 void chara_render(const struct Character *chara);
+
+int chara_get_space_y(struct Character *chara);
 

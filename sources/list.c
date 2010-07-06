@@ -1,15 +1,14 @@
 #include "list.h"
-
-#include "marco.h"
+#include "macro.h"
 
 #include <stdlib.h>
 
 
 struct List *list_create(const int size) {
-    struct List *list = malloc(sizeof(struct List));
+    struct List *list = (struct List*)malloc(sizeof(struct List));
     list->size = size;
     list->length = 0;
-    list->items = calloc(sizeof(void*), list->size);
+    list->items = (void**)calloc(sizeof(void*), list->size);
     return list;
 }
 
@@ -20,7 +19,7 @@ void *list_append(struct List *list, void *p) {
         list->size *= 2;
         
         void **tmp;
-        if (!(tmp = realloc(list->items, sizeof(void*) * list->size))) {
+        if (!(tmp = (void**)realloc(list->items, sizeof(void*) * list->size))) {
             return NULL;
         }
         list->items = tmp;
@@ -53,7 +52,7 @@ void *list_insert(struct List *list, const int o_index, void *p) {
             list->size *= 2;
             
             void **tmp;
-            if (!(tmp = realloc(list->items, sizeof(void*) * list->size))) {
+            if (!(tmp = (void**)realloc(list->items, sizeof(void*) * list->size))) {
                 return NULL;
             }
             list->items = tmp;
