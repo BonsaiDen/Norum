@@ -12,26 +12,26 @@
 struct Engine *engine;
 
 // Methods
-bool engine_init(int width, int height, int scale, int fps);
+bool engine_init(const int width, const int height, const int scale, const int fps);
 void engine_update();
 void engine_render(struct Screen *screen);
 void engine_cleanup();
 void engine_crash(const char *reason);
 
-void engine_pause(bool mode);
+void engine_pause(const bool mode);
 
 void engine_events();
 void engine_clear_keys();
 void engine_clear_mouse();
 
-void image_color_key(SDL_Surface *img, long int key);
+void image_color_key(SDL_Surface *img, const int key);
 
-struct Screen *screen_create(int width, int height, int scale);
+struct Screen *screen_create(const int width, const int height, const int scale);
 
 
 // Engine ----------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-int engine_create(int width, int height, int scale, int fps) {
+int engine_create(const int width, const int height, const int scale, const int fps) {
     engine = (struct Engine*)malloc(sizeof(struct Engine));
     
     if (!engine_init(width, height, scale, fps)) {
@@ -87,7 +87,7 @@ int engine_create(int width, int height, int scale, int fps) {
     return 0;
 }
 
-bool engine_init(int width, int height, int scale, int fps) {
+bool engine_init(const int width, const int height, const int scale, const int fps) {
     atexit(SDL_Quit);
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         engine_crash("SDL initilization failed");
@@ -103,6 +103,15 @@ bool engine_init(int width, int height, int scale, int fps) {
     engine->list_tilemaps = list_create(8);
     engine->list_surfaces = list_create(16);
     engine->running = true;
+    engine->paused = false;
+    
+    for(int i = 0; i < 322; i++) {
+        engine->keys[i] = 0;
+    }
+
+    for(int i = 0; i < 8; i++) {
+        engine->mouse[i] = 0;
+    }
     return true;
 }
 
@@ -129,7 +138,7 @@ void engine_crash(const char *reason) {
     exit(1);
 }
 
-void engine_pause(bool mode) {
+void engine_pause(const bool mode) {
     engine->paused = mode;
 }
 
@@ -145,11 +154,11 @@ void engine_quit() {
 
 // General Stuff ---------------------------------------------------------------
 // -----------------------------------------------------------------------------
-int fps_get(bool current) {
+int fps_get(const bool current) {
     return current ? engine->fps_current : engine->fps_rate;
 }
 
-void fps_set(int fps) {
+void fps_set(const int fps) {
     engine->fps_rate = fps;
     engine->fps_wait = 1000 / fps;
 }
@@ -266,7 +275,7 @@ void mouse_get_pos(int *x, int *y) {
 
 // Images ----------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-SDL_Surface *image_create(int w, int h, long int key) {
+SDL_Surface *image_create(const int w, const int h, const int key) {
     SDL_PixelFormat *format = engine->screen->format;
     SDL_Surface *img = SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_RLEACCEL, w, h,
                                             format->BitsPerPixel, 
@@ -283,13 +292,15 @@ SDL_Surface *image_create(int w, int h, long int key) {
     return img;
 }
 
-SDL_Surface *image_load(const char* file, long int key) {
+SDL_Surface *image_load(const char* file, const int key) {
     SDL_Surface *tmp = IMG_Load(file);
     if (!tmp) {
         engine_crash("Image loading failed");
     }
     
-    SDL_Surface *img = SDL_ConvertSurface(tmp, engine->screen->format, SDL_HWSURFACE | SDL_RLEACCEL);
+    SDL_Surface *img = SDL_ConvertSurface(tmp, engine->screen->format,
+                                          SDL_HWSURFACE | SDL_RLEACCEL);
+    
     SDL_FreeSurface(tmp);
     image_color_key(img, key);
     list_add(engine->list_surfaces, img);
@@ -301,7 +312,7 @@ void image_draw(SDL_Surface *bg, SDL_Surface *img, const int x, const int y) {
     SDL_BlitSurface(img, NULL, bg, &dst);
 }
 
-void image_color_key(SDL_Surface *img, long int key) {
+void image_color_key(SDL_Surface *img, const int key) {
     if (key != -1 && SDL_SetColorKey(img, SDL_SRCCOLORKEY | SDL_RLEACCEL, key) == -1) {
         engine_crash("Colorkey setting failed");
     }
@@ -310,7 +321,7 @@ void image_color_key(SDL_Surface *img, long int key) {
 
 // Tiles -----------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-struct TileMap *tiles_from_image(SDL_Surface *img, int w, int h) {    
+struct TileMap *tiles_from_image(SDL_Surface *img, const int w, const int h) {    
     struct TileMap *tile_map = (struct TileMap*)malloc(sizeof(struct TileMap));
     tile_map->img = img;
     tile_map->w = w;
@@ -324,11 +335,14 @@ struct TileMap *tiles_from_image(SDL_Surface *img, int w, int h) {
     return tile_map;
 }
 
-struct TileMap *tiles_from_file(const char* file, int w, int h, long int key) {
+struct TileMap *tiles_from_file(const char* file, const int w, const int h, const int key) {
     return tiles_from_image(image_load(file, key), w, h);
 }
 
-void tiles_draw(const struct TileMap *map, SDL_Surface *bg, const int index, int x, const int y) {
+void tiles_draw(const struct TileMap *map, SDL_Surface *bg,
+                                           const int index,
+                                           int x, const int y) {
+    
     const int ty = index / map->w;
     const int tx = index - ty * map->w;
     SDL_Rect src = {tx * map->xs, ty * map->ys, map->xs, map->ys};
@@ -346,8 +360,10 @@ int color_create_alpha(const int r, const int g, const int b, const int a) {
     return SDL_MapRGBA(engine->screen->bg->format, r, g, b, a);
 }
 
-void draw_rect(SDL_Surface *bg, const int x, const int y, const int w, const int h, const int color) {
-    SDL_Rect *clip = &bg->clip_rect;
+void draw_rect(SDL_Surface *bg, const int x, const int y, const int w, 
+                                             const int h, const int color) {
+    
+    const SDL_Rect *clip = &bg->clip_rect;
     SDL_Rect rect;
     
     const int cx = clip->x;
@@ -398,7 +414,9 @@ void draw_rect(SDL_Surface *bg, const int x, const int y, const int w, const int
     }
 }
 
-void draw_rect_filled(SDL_Surface *bg, const int x, const int y, const int w, const int h, const int color) {
+void draw_rect_filled(SDL_Surface *bg, const int x, const int y, const int w,
+                                                    const int h, const int color) {
+    
     SDL_Rect rect = {x, y, w, h};
     SDL_FillRect(bg, &rect, color);
 }
@@ -407,12 +425,14 @@ void draw_rect_filled(SDL_Surface *bg, const int x, const int y, const int w, co
 // Screen ----------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 struct Screen *screen_create(int width, int height, int scale) {
-    struct Screen *screen = ((struct Screen*)malloc(sizeof(struct Screen)));
+    struct Screen *screen = (struct Screen*)malloc(sizeof(struct Screen));
     screen->w = width;
     screen->h = height;
     screen->scale = scale;
     screen->has_focus = true;
-    screen->bg = SDL_SetVideoMode(screen->w, screen->h, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_ANYFORMAT);
+    screen->bg = SDL_SetVideoMode(screen->w, screen->h, 32,
+                                  SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_ANYFORMAT);
+    
     screen->format = screen->bg->format;
     if (screen->bg == NULL) {
         char *msg = (char*)calloc(sizeof(char), 40);
