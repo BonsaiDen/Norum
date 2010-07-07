@@ -9,7 +9,7 @@ unsigned char *rle_encode(unsigned const char *data, unsigned int *size);
 unsigned char *rle_decode(unsigned const char *data, unsigned int size);
 
 void map_save(struct Map *map, const char *file_name) {
-    FILE *fp = fopen(file_name, "w");
+    FILE *fp = fopen(file_name, "wb");
     
     // Header
     int header[] = {map->size_x, map->size_y, 3};
@@ -26,9 +26,10 @@ void map_save(struct Map *map, const char *file_name) {
     int zone_count = map->zones->length + map->platform_zones->length;
     fwrite(&zone_count, sizeof(int), 1, fp);
     
+    struct MapZone *zone;
     int *d = (int*)calloc(sizeof(int), 6);
     for(int i = 0; i < map->zones->length; i++) {
-        struct MapZone *zone = (struct MapZone*)list_get(map->zones, i);
+        zone = (struct MapZone*)list_get(map->zones, i);
         map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
         d[4] = zone->type;
         d[5] = zone->extra;
@@ -36,7 +37,7 @@ void map_save(struct Map *map, const char *file_name) {
     }
     
     for(int i = 0; i < map->platform_zones->length; i++) {
-        struct MapZone *zone = (struct MapZone*)list_get(map->platform_zones, i);
+        zone = (struct MapZone*)list_get(map->platform_zones, i);
         map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
         d[4] = zone->type;
         d[5] = zone->extra;
@@ -46,30 +47,33 @@ void map_save(struct Map *map, const char *file_name) {
     fclose(fp);
 }
 
-bool map_load(struct Map *map, const char *file_name) {
-    FILE *fp = fopen(file_name, "r");
-    if (fp != NULL) {
+void *map_read(size_t size, size_t count, FILE *fp) {
+    void *data = (void*)malloc(size * count);
+    if (fread(data, size, count, fp) == count) {
+        return data;
     
+    } else {
+        return NULL;   
+    }
+}
+
+bool map_load(struct Map *map, const char *file_name) {
+    FILE *fp = fopen(file_name, "rb");
+    if (fp != NULL) {
         // Header
-        int result = 0;
-        int *header = (int*)calloc(sizeof(int), 3);
-        result = fread(header, sizeof(int), 3, fp);
+        int *header = (int*)map_read(sizeof(int), 3, fp);
         map->pos_x = 0;
         map->pos_y = 0;
         map->map_x = 0;
         map->map_y = 0;
         map->size_x = header[0];
         map->size_y = header[1];
-        map_zones_remove(map);
+        map_zones_remove(map);        
         free(header);
         
         // Blocks
-        unsigned int *block_size = (unsigned int*)malloc(sizeof(unsigned int));
-        result = fread(block_size, sizeof(int), 1, fp);
-        
-        unsigned char *block_data = (unsigned char*)calloc(sizeof(unsigned char), *block_size);
-        result = fread(block_data, sizeof(unsigned char), *block_size, fp);
-        
+        unsigned int *block_size = (unsigned int*)map_read(sizeof(unsigned int), 1, fp);
+        unsigned char *block_data = (unsigned char*)map_read(sizeof(unsigned char), *block_size, fp);
         unsigned char *tmp = map->blocks;
         map->blocks = rle_decode(block_data, *block_size);
         free(tmp);
@@ -77,22 +81,21 @@ bool map_load(struct Map *map, const char *file_name) {
         free(block_data);
         
         // Zones
-        int *zone_count = (int*)malloc(sizeof(int));
-        result = fread(zone_count, sizeof(int), 1, fp);  
-        
-        int *d = (int*)calloc(sizeof(int), 6);
+        int *zone_count = (int*)map_read(sizeof(int), 1, fp);
+        int *d = NULL;
         for(int i = 0, l = *zone_count; i < l; i++) {
-            result = fread(d, sizeof(int), 6, fp);
+            d = (int*)map_read(sizeof(int), 6, fp);
             map_zone_create(map, d[0], d[1], d[2], d[3], d[4], d[5]);
         }
         map_platforms_create(map);
-        
         free(zone_count);
         free(d);
         fclose(fp);
         return true;
+    
+    } else {
+        return false;
     }
-    return false;
 }
 
 
