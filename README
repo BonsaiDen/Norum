@@ -1,3 +1,22 @@
+About
+-----
+This is a "Tech Demo" for a 2D Adventure/Platform Game.
+
+
+Compiling
+---------
+
+Linux(GCC):
+$ gcc -std=c99 <files> -o main `sdl-config --cflags --libs` -lSDL_image
+
+Windows:
+If you are using MSVC make sure to compile the project as CPP, since MSVC does not implement the C99 Standard.
+You can also compile with Code::Blocks and MinGW32, again add the -std=99 option, there are still random crashes though and the program takes longer to start than with MSVC.
+
+
+License
+-------
+
  Copyright (c) 2010 Ivo Wetzel
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
