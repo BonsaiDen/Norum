@@ -1,4 +1,4 @@
-#include <stdbool.h>
+#include "macro.h"
 
 struct Screen;
 

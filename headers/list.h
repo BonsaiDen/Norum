@@ -1,3 +1,4 @@
+#include "macro.h"
 
 struct List {
     int length;

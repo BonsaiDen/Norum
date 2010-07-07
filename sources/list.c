@@ -1,5 +1,4 @@
 #include "list.h"
-#include "macro.h"
 
 #include <stdlib.h>
 
@@ -107,6 +106,8 @@ void *list_add(struct List *list, void *p) {
     }
 }
 
+
+// O(n log n) Operations -------------------------------------------------------
 void *list_remove(struct List *list, void *p) {
     const int index = list_find(list, p);
     if (index != -1) {

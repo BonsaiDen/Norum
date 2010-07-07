@@ -1,5 +1,5 @@
 #include <SDL.h>
-#include <stdbool.h>
+#include "macro.h"
 
 
 struct List;
@@ -42,13 +42,13 @@ struct Engine {
 
 
 // Engine
-int engine_create(int width, int height, int scale, int fps);
+int engine_create(const int width, const int height, const int scale, const int fps);
 void engine_quit();
 
 // Gets & Sets
 int time_get();
-int fps_get(bool current);
-void fps_set(int fps);
+int fps_get(const bool current);
+void fps_set(const int fps);
 
 // Input
 bool key_down(const SDLKey key);
@@ -61,13 +61,13 @@ bool mouse_on_screen();
 void mouse_get_pos(int *x, int *y);
 
 // Images
-SDL_Surface *image_create(int w, int h, long int key);
-SDL_Surface *image_load(const char *file, long int key);
+SDL_Surface *image_create(const int w, const int h, const int key);
+SDL_Surface *image_load(const char *file, const int key);
 void image_draw(SDL_Surface *bg, SDL_Surface *img, const int x, const int y);
 
 // Tiles
-struct TileMap *tiles_from_image(SDL_Surface *img, int x, int y);
-struct TileMap *tiles_from_file(const char *file, int x, int y, long int key);
+struct TileMap *tiles_from_image(SDL_Surface *img, const int x, const int y);
+struct TileMap *tiles_from_file(const char *file, const int x, const int y, const int key);
 void tiles_draw(const struct TileMap *map, SDL_Surface *bg, const int index, int x, const int y);
 
 // Drawing

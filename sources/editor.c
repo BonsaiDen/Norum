@@ -5,7 +5,6 @@
 #include "map.h"
 #include "game.h"
 #include "engine.h"
-#include "macro.h"
 
 #include <SDL_image.h>
 #include <SDL.h>
@@ -158,13 +157,17 @@ void editor_edit_zones(struct Map *map, int px, int py, bool shift, bool ctrl) {
             }
         
         } else if (editor_move_zone_dir == 2) {
-            int w = editor_old_zone[2] - ((editor_old_zone[2] - editor_tile_x) + editor_edit_zone->x) + 1;
+            int w = editor_old_zone[2] - ((editor_old_zone[2] - editor_tile_x) 
+                    + editor_edit_zone->x) + 1;
+            
             if (w >=( editor_edit_zone->type == 0 ? 20 : 2)) {
                 editor_edit_zone->w = w;
             }
         
         } else if (editor_move_zone_dir == 4) {
-            int h = editor_old_zone[3] - ((editor_old_zone[3] - editor_tile_y) + editor_edit_zone->y) + 1;
+            int h = editor_old_zone[3] - ((editor_old_zone[3] - editor_tile_y) 
+                    + editor_edit_zone->y) + 1;
+            
             if (h >= (editor_edit_zone->type == 0 ? 15 : 1)) {
                 editor_edit_zone->h = h;
             }
@@ -246,10 +249,14 @@ void editor_update(struct Map *map) {
         
         // Edit Tiles
         if (editor_tiles) {
-            if (mouse_pressed(SDL_BUTTON_LEFT) || (shift && mouse_down(SDL_BUTTON_LEFT))) {
+            if (mouse_pressed(SDL_BUTTON_LEFT)
+                || (shift && mouse_down(SDL_BUTTON_LEFT))) {
+                
                 map_set_at(map, editor_tile_x, editor_tile_y, editor_draw_tile);
             
-            } else if (mouse_pressed(SDL_BUTTON_RIGHT) || (shift && mouse_down(SDL_BUTTON_RIGHT))) {
+            } else if (mouse_pressed(SDL_BUTTON_RIGHT) 
+                       || (shift && mouse_down(SDL_BUTTON_RIGHT))) {
+                
                 map_set_at(map, editor_tile_x, editor_tile_y, 0);
             }
             
@@ -319,22 +326,28 @@ void editor_render(struct Map *map, SDL_Surface *bg) {
         struct MapZone *zone = (struct MapZone*)list_get(map->platform_zones, i);
         map_zone_get_region(zone, &px, &py, &w, &h);
         map_to_screen(map, px * 16, py * 16, &px, &py);
-        draw_rect(bg, px, py, w * 16, h * 16, editor_zone == zone ? yellow : blue);
+        draw_rect(bg, px, py, w * 16, h * 16, 
+                  editor_zone == zone ? yellow : blue);
         
         if (zone->extra == 1) {
-            draw_rect_filled(bg, px + 2, py + 2, 28, 4, editor_zone == zone ? yellow : blue);  
+            draw_rect_filled(bg, px + 2, py + 2, 28, 4,
+                             editor_zone == zone ? yellow : blue);  
         
         } else if (zone->extra == 4) {
-            draw_rect_filled(bg, px + 2, py + h * 16 - 6, 28, 4, editor_zone == zone ? yellow : blue);  
+            draw_rect_filled(bg, px + 2, py + h * 16 - 6, 28, 4,
+                             editor_zone == zone ? yellow : blue);  
         
         } else if (zone->extra == 0) {
-            draw_rect_filled(bg, px + w * 16 / 2 - 14, py + h * 16 / 2 - 6, 28, 4, editor_zone == zone ? yellow : blue);
+            draw_rect_filled(bg, px + w * 16 / 2 - 14, py + h * 16 / 2 - 6, 28, 4,
+                             editor_zone == zone ? yellow : blue);
         
         } else if (zone->extra == 8) {
-            draw_rect_filled(bg, px + 2, py + 2, 28, 4, editor_zone == zone ? yellow : blue);  
+            draw_rect_filled(bg, px + 2, py + 2, 28, 4,
+                             editor_zone == zone ? yellow : blue);  
         
         } else if (zone->extra == 2) {
-            draw_rect_filled(bg, px + w * 16 - 28, py + 2, 28, 4, editor_zone == zone ? yellow : blue);  
+            draw_rect_filled(bg, px + w * 16 - 28, py + 2, 28, 4,
+                             editor_zone == zone ? yellow : blue);  
         }
     }
 }

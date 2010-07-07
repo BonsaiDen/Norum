@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include "macro.h"
 
 struct Player;
 struct Map;

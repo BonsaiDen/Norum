@@ -356,7 +356,10 @@ int chara_get_space_y(struct Character *chara) {
 void chara_limit_y(struct Character *chara, int *my, int *offset) {
     if (chara->grav_add > 0) {
         if (chara->grav >= chara->grav_zero) {
-            int y = chara->use_platforms ? chara_col_down_platform(chara) : chara_col_down(chara);
+            int y = chara->use_platforms 
+                    ? chara_col_down_platform(chara) 
+                    : chara_col_down(chara);
+            
             chara->on_ground = y > chara->y ? false : true;
             *my = y;
             *offset = 0;
@@ -368,7 +371,10 @@ void chara_limit_y(struct Character *chara, int *my, int *offset) {
     
     } else {
         if (chara->grav <= chara->grav_zero) {
-            int y = chara->use_platforms ? chara_col_up_platform(chara) + chara->h : chara_col_up(chara) + chara->h;
+            int y = chara->use_platforms 
+                    ? chara_col_up_platform(chara) + chara->h 
+                    : chara_col_up(chara) + chara->h;
+            
             chara->on_ground = y < chara->y ? false : true;
             *my = y;
             *offset = chara->h + 1;
@@ -449,7 +455,9 @@ int chara_col_up_platform(struct Character *chara) {
     }
     
     if (unlikely(platform && oy > my)) {
-        if ((chara->y- chara->h <= oy || (platform->mode == 1 && chara->y - chara->h <= oy + 8))) {
+        if ((chara->y- chara->h <= oy 
+            || (platform->mode == 1 && chara->y - chara->h <= oy + 8))) {
+            
             chara->platform = platform;
             chara->on_platform = true;
         }
@@ -496,7 +504,9 @@ int chara_col_down_platform(struct Character *chara) {
     }
     
     if (unlikely(platform && oy < my)) {
-        if ((chara->y >= oy || (platform->mode == 4 && chara->y >= oy - platform->speed))) {
+        if ((chara->y >= oy 
+            || (platform->mode == 4 && chara->y >= oy - platform->speed))) {
+            
             chara->platform = platform;
             chara->on_platform = true;
         }
