@@ -568,14 +568,14 @@ void map_control_platforms_horizontal(struct Map *map) {
             platform = (struct Platform*)list_get(map->platforms_local, i);
             if (platform->mode == 2) {
                 platform->x += platform->speed;
-                if (platform->x > platform->zone->w * 16 - 32) {
+                if (platform->x >= platform->zone->w * 16 - 32) {
                     platform->x = platform->zone->w * 16 - 32;
                     platform->mode = 8;
                 }
             
             } else if (platform->mode == 8) {
                 platform->x -= platform->speed;
-                if (platform->x < 0) {
+                if (platform->x <= 0) {
                     platform->x = 0;
                     platform->mode = 2;
                 }
@@ -720,8 +720,8 @@ int map_col_right_platform(const struct Map *map, const int x, const int y) {
     int mx = map->size_y * 16 + 16, px, py;
     for(int i = 0, l = map->platforms_local->length; i < l; i++) {
         tmp = (struct Platform*)list_get(map->platforms_local, i);
-        px = tmp->zone->x * 16 + tmp->x;
-        if (px < mx && x <= px + tmp->speed) {
+        px = tmp->zone->x * 16 + tmp->x + (tmp->mode == 2 ? tmp->speed : -(tmp->speed));
+        if (px < mx && x <= px + (tmp->mode == 8 ? tmp->speed : -(tmp->speed))) {
             py = tmp->zone->y * 16 + tmp->y;
             if (y >= py && y < py + 8) {
                 mx = px;
@@ -736,8 +736,9 @@ int map_col_left_platform(const struct Map *map, const int x, const int y) {
     int mx = 0, px, py;
     for(int i = 0, l = map->platforms_local->length; i < l; i++) {
         tmp = (struct Platform*)list_get(map->platforms_local, i);
-        px = tmp->zone->x * 16 + tmp->x + 32;
-        if (px > mx && x >= px - tmp->speed) {
+        
+        px = tmp->zone->x * 16 + tmp->x + 32 - (tmp->mode == 8 ? tmp->speed : -(tmp->speed));
+        if (px > mx && x >= px - (tmp->mode == 2 ? tmp->speed * 2 : 0)) {
             py = tmp->zone->y * 16 + tmp->y;
             if (y >= py && y < py + 8) {
                 mx = px;
