@@ -10,7 +10,7 @@
 #include "map.h"
 #include "engine.h"
 
-#include <time.h>
+//#include <time.h>
 #include <stdlib.h>
 #include <SDL.h>
 
@@ -44,9 +44,9 @@ bool playing_get() {
 // Game Functions --------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void game_init() {
-    time_t seconds;
-    time(&seconds);
-    srand((unsigned int)seconds);
+  //  time_t seconds;
+ //   time(&seconds);
+ //   srand((unsigned int)seconds);
     
     SDL_WM_SetCaption(WINDOW_TITLE, WINDOW_TITLE);
     
@@ -95,7 +95,9 @@ void game_update() {
 }
 
 void game_render(struct Screen *screen) {
+    #ifdef EDITOR
     SDL_FillRect(screen->bg, 0, bg_color);
+    #endif
     map_draw(map);
     player_render(player);
     map_render(map, screen->bg);
@@ -109,13 +111,10 @@ void game_render(struct Screen *screen) {
 
 void game_quit() {
     #ifdef EDITOR
-    printf("saving map...\n");
     map_save(map, "map.data");
-    printf("map saved...\n");
     #endif
-    printf("freeing map...\n");
+    
     map_free(map);
-    printf("freeing player...\n");
     player_free(player);
 }
 
