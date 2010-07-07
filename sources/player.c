@@ -5,9 +5,7 @@
 #include "engine.h"
 
 #include <SDL.h>
-
 #include <stdlib.h>
-#include <math.h>
 
 
 struct Player *player_create(struct Map *map, const int x, const int y) {
@@ -50,9 +48,9 @@ void player_control(struct Player *player) {
         } else if (!key_down(SDLK_s) && player->crouch) {
             if (chara_get_space_y(player->chara) >= 8) {
                 player->crouch = false;
-            if (player->chara->grav_add < 0) {
-                player->chara->y += 8;
-            }
+                if (player->chara->grav_add < 0) {
+                    player->chara->y += 8;
+                }
                 player->chara->h = 24;
             }
         }
@@ -67,10 +65,10 @@ void player_control(struct Player *player) {
         } else if (!key_down(SDLK_SPACE)) {
             if (player->jumped) {
                 if (gravity_get()) {
-                    player->chara->grav_fall = fmax(-1.15, player->chara->grav_fall);
+                    player->chara->grav_fall = max(-1.15, player->chara->grav_fall);
                 
                 } else {
-                    player->chara->grav_fall = fmin(1.15, player->chara->grav_fall);
+                    player->chara->grav_fall = min(1.15, player->chara->grav_fall);
                 }
                 player->jumped = false;
             }

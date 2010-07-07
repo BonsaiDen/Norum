@@ -3,7 +3,6 @@
 #include "engine.h"
 
 #include <stdlib.h>
-#include <math.h>
 
 
 int chara_col_down_platform(struct Character *chara);
@@ -50,7 +49,7 @@ struct Character *chara_create(struct Map *map, const int x, const int y,
     chara->grav_max = 0.0;
     chara->grav_min = 0.0;
     chara->grav_zero = 0.0;
-    chara->grav_relative = 0.0;
+    chara->grav_relative = 0;
     
     chara->on_ground = false;
     chara->on_platform = false;
@@ -83,7 +82,7 @@ void chara_update(struct Character *chara, const bool has_control,
         
         } else {
             chara->grav_fall += chara->grav_add;
-
+            
             if (chara->grav_add > 0) {
                 if (chara->grav_fall > chara->grav_max) {
                     chara->grav_fall = chara->grav_max;
@@ -207,10 +206,10 @@ int chara_col_left_platform(const struct Character *chara) {
             o = chara->h;
         }
         
-        mx = fmax(map_col_left(chara->map, chara->x + chara->l, chara->y - o), mx);
-        ox = fmax(map_col_left_platform(chara->map, chara->x + chara->l, chara->y - o), ox);
+        mx = max(map_col_left(chara->map, chara->x + chara->l, chara->y - o), mx);
+        ox = max(map_col_left_platform(chara->map, chara->x + chara->l, chara->y - o), ox);
     }
-    return fmax(mx, ox);
+    return max(mx, ox);
 }
 
 int chara_col_left(const struct Character *chara) {
@@ -228,7 +227,7 @@ int chara_col_left(const struct Character *chara) {
             o = chara->h;
         }
         
-        mx = fmax(map_col_left(chara->map, chara->x + chara->l, chara->y - o), mx);
+        mx = max(map_col_left(chara->map, chara->x + chara->l, chara->y - o), mx);
     }
     return mx;
 }
@@ -244,10 +243,10 @@ int chara_col_right_platform(const struct Character *chara) {
             o = chara->h;
         }
         
-        mx = fmin(map_col_right(chara->map, chara->x + chara->r, chara->y - o), mx);
-        ox = fmin(map_col_right_platform(chara->map, chara->x + chara->r, chara->y - o), ox);
+        mx = min(map_col_right(chara->map, chara->x + chara->r, chara->y - o), mx);
+        ox = min(map_col_right_platform(chara->map, chara->x + chara->r, chara->y - o), ox);
     }
-    return fmin(mx, ox);
+    return min(mx, ox);
 }
 
 int chara_col_right(const struct Character *chara) {
@@ -264,7 +263,7 @@ int chara_col_right(const struct Character *chara) {
         } else if (o > chara->h) {
             o = chara->h;
         }
-        mx = fmin(map_col_right(chara->map, chara->x + chara->r, chara->y - o), mx);
+        mx = min(map_col_right(chara->map, chara->x + chara->r, chara->y - o), mx);
     }
     return mx;
 }
@@ -306,14 +305,14 @@ void chara_fall(struct Character *chara, const bool fall_off) {
     
     int grav;
     if (chara->grav < 0) {
-        grav = abs(fmax(floor(chara->grav), chara->grav_min));
+        grav = abs((int)max((int)(chara->grav), chara->grav_min));
     
     } else {
-        grav = fmin(floor(chara->grav), chara->grav_max);
+        grav = (int)min((int)(chara->grav), chara->grav_max);
     }
     
     chara_check_y(chara, true, 0);
-    for (int i = 0, l = fmax(grav, 1); i < l; i++) {
+    for (int i = 0, l = max(grav, 1); i < l; i++) {
         if (chara_check_y(chara, false, offset)) {
             return;
         
@@ -427,7 +426,7 @@ int chara_col_up(const struct Character *chara) {
         } else if (o > chara->r - 1) {
             o = chara->r - 1;
         }
-        my = fmax(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
+        my = max(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
     }
     return my;
 }
@@ -444,7 +443,7 @@ int chara_col_up_platform(struct Character *chara) {
             o = chara->r - 1;
         }
         
-        my = fmax(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
+        my = max(map_col_up(chara->map, chara->x + o, chara->y - chara->h), my);
         tmp = map_col_up_platform(chara->map, chara->x + o, chara->y - chara->h, &py);
         if (unlikely(tmp != NULL)) {
             if (py > oy) {
@@ -476,7 +475,7 @@ int chara_col_down(const struct Character *chara) {
         } else if (o > chara->r - 1) {
             o = chara->r - 1;
         }
-        my = fmin(map_col_down(chara->map, chara->x + o, chara->y), my);
+        my = min(map_col_down(chara->map, chara->x + o, chara->y), my);
     }
     return my;
 }
@@ -493,7 +492,7 @@ int chara_col_down_platform(struct Character *chara) {
             o = chara->r - 1;
         }
         
-        my = fmin(map_col_down(chara->map, chara->x + o, chara->y), my);
+        my = min(map_col_down(chara->map, chara->x + o, chara->y), my);
         tmp = map_col_down_platform(chara->map, chara->x + o, chara->y, &py);
         if (unlikely(tmp != NULL)) {
             if (py < oy) {
@@ -515,7 +514,7 @@ int chara_col_down_platform(struct Character *chara) {
     return my;
 }
 
-void chara_set_gravity(struct Character *chara, float add, float min, float max) {
+void chara_set_gravity(struct Character *chara, double add, double min, double max) {
     if (min != 0 && max != 0) {
         chara->grav_min = min;
         chara->grav_max = max;
