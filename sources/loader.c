@@ -12,36 +12,45 @@ void map_save(struct Map *map, const char *file_name) {
     FILE *fp = fopen(file_name, "wb");
     
     // Header
-    int header[] = {map->size_x, map->size_y, 3};
-    fwrite(header, sizeof(int), 3, fp);
+    unsigned short header[] = {map->size_x, map->size_y, 4};
+    fwrite(header, sizeof(unsigned short), 3, fp);
     
     // Block
     unsigned int block_size = map->size_x * map->size_y;
     unsigned char *data = rle_encode(map->blocks, &block_size);
-    fwrite(&block_size, sizeof(int), 1, fp);
+    fwrite(&block_size, sizeof(unsigned int), 1, fp);
     fwrite(data, sizeof(unsigned char), block_size, fp);
     free(data);
     
     // Zones
-    int zone_count = map->zones->length + map->platform_zones->length;
-    fwrite(&zone_count, sizeof(int), 1, fp);
+    unsigned short zone_count = map->zones->length + map->platform_zones->length;
+    fwrite(&zone_count, sizeof(unsigned short), 1, fp);
     
     struct MapZone *zone;
-    int *d = (int*)calloc(sizeof(int), 6);
+    unsigned short *d = (unsigned short*)calloc(sizeof(unsigned short), 4);
+    unsigned char *e = (unsigned char*)calloc(sizeof(unsigned char), 2);
     for(int i = 0; i < map->zones->length; i++) {
         zone = (struct MapZone*)list_get(map->zones, i);
-        map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
-        d[4] = zone->type;
-        d[5] = zone->extra;
-        fwrite(d, sizeof(int), 6, fp);
+        d[0] = zone->x;
+        d[1] = zone->y;
+        d[2] = zone->w;
+        d[3] = zone->h;
+        e[0] = zone->type;
+        e[1] = zone->extra;
+        fwrite(d, sizeof(unsigned short), 4, fp);
+        fwrite(e, sizeof(unsigned char), 2, fp);
     }
     
     for(int i = 0; i < map->platform_zones->length; i++) {
         zone = (struct MapZone*)list_get(map->platform_zones, i);
-        map_zone_get_region(zone, &d[0], &d[1], &d[2], &d[3]);
-        d[4] = zone->type;
-        d[5] = zone->extra;
-        fwrite(d, sizeof(int), 6, fp);
+        d[0] = zone->x;
+        d[1] = zone->y;
+        d[2] = zone->w;
+        d[3] = zone->h;
+        e[0] = zone->type;
+        e[1] = zone->extra;
+        fwrite(d, sizeof(unsigned short), 4, fp);
+        fwrite(e, sizeof(unsigned char), 2, fp);
     }
     free(d);
     fclose(fp);
@@ -61,7 +70,7 @@ bool map_load(struct Map *map, const char *file_name) {
     FILE *fp = fopen(file_name, "rb");
     if (fp != NULL) {
         // Header
-        int *header = (int*)map_read(sizeof(int), 3, fp);
+        unsigned short *header = (unsigned short*)map_read(sizeof(unsigned short), 3, fp);
         map->pos_x = 0;
         map->pos_y = 0;
         map->map_x = 0;
@@ -81,11 +90,13 @@ bool map_load(struct Map *map, const char *file_name) {
         free(block_data);
         
         // Zones
-        int *zone_count = (int*)map_read(sizeof(int), 1, fp);
-        int *d = NULL;
+        unsigned short *zone_count = (unsigned short*)map_read(sizeof(unsigned short), 1, fp);
+        unsigned short *d = NULL;
+        unsigned char *e = NULL;
         for(int i = 0, l = *zone_count; i < l; i++) {
-            d = (int*)map_read(sizeof(int), 6, fp);
-            map_zone_create(map, d[0], d[1], d[2], d[3], d[4], d[5]);
+            d = (unsigned short*)map_read(sizeof(unsigned short), 4, fp);
+            e = (unsigned char*)map_read(sizeof(unsigned char), 2, fp);
+            map_zone_create(map, d[0], d[1], d[2], d[3], e[0], e[1]);
         }
         map_platforms_create(map);
         free(zone_count);
